@@ -32,7 +32,24 @@
             background: rgba(120, 80, 200, 0.6);
             z-index: -1;
         }
-
+       /* 右上角按钮样式 */
+       .top-right-btn {
+         position: fixed;
+         top: 20px;
+         right: 20px;
+         z-index: 999;
+         padding: 10px 18px;
+         background: #e955a7;
+         color: #fff;
+         border: none;
+         border-radius: 8px;
+         font-size: 24px;
+         cursor: pointer;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+       }
+       .top-right-btn:hover {
+         background: #d645a2;
+       }
         /* 头部信息 */
         .header {
             text-align: center;
@@ -182,6 +199,8 @@
 </style>
 </head>
 <body>
+<!-- 右上角按钮 -->
+<button class="top-right-btn" onclick="window.open('https://qiyuanyuan.feishu.cn/wiki/ABozwohdai54eWkUhVfc49nLnCe?table=tblAyMnUJgpuWVqp&view=vewXxBNTOK','_blank')">前往路灯</button>
 
  <!-- 头部 -->
     <div class="header">
