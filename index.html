@@ -328,7 +328,7 @@ function render() {
 // 点击整行复制
 function copyThis(index) {
     const item = filtered[index];
-    const text = `点歌 ${item.title} - ${item.singer}`;
+    const text = `点歌 ${item.title} ${item.singer}`;
     navigator.clipboard.writeText(text).then(() => {
         showToast(`已复制：${text}`);
     }).catch(() => {
@@ -340,7 +340,7 @@ function copyThis(index) {
 document.querySelector('.random-btn').onclick = () => {
     if (filtered.length === 0) return showToast('暂无歌曲', true);
     const item = filtered[Math.floor(Math.random() * filtered.length)];
-    const text = `点歌 ${item.title} - ${item.singer}`;
+    const text = `点歌 ${item.title} ${item.singer}`;
     navigator.clipboard.writeText(text).then(() => {
         showToast(`随机已复制：${text}`);
     }).catch(() => {
