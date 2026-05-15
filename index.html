@@ -6,235 +6,240 @@
 <title>栖苑歌单</title>
 <style>
 /* 全局样式 */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "Microsoft Yahei", sans-serif;
-        }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Microsoft Yahei", sans-serif;
+}
 
-        /* 这里已经改成可自定义背景图 */
-        body {
-            background: url('./bgi-w-idol.jpg') no-repeat center center fixed; 
-            background-size: cover;
-            color: #fff;
-            position: relative;
-        }
+/* 背景 */
+body {
+    background: url('./bgi-w-idol.jpg') no-repeat center center fixed; 
+    background-size: cover;
+    color: #fff;
+    position: relative;
+}
 
-        /* 背景遮罩 */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(120, 80, 200, 0.6);
-            z-index: -1;
-        }
-       /* 右上角按钮样式 */
-       .top-right-btn {
-         position: fixed;
-         top: 20px;
-         right: 20px;
-         z-index: 999;
-         padding: 10px 18px;
-         background: #e955a7;
-         color: #fff;
-         border: none;
-         border-radius: 8px;
-         font-size: 24px;
-         cursor: pointer;
-         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-       }
-       .top-right-btn:hover {
-         background: #d645a2;
-       }
-        /* 头部信息 */
-        .header {
-            text-align: center;
-            padding: 40px 0;
-        }
+/* 背景遮罩 */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(120, 80, 200, 0.6);
+    z-index: -1;
+}
 
-        .avatar {
-            width: 256px;
-            height: 256px;
-            border-radius: 50%;
-            border: 4px solid #fff;
-            margin-bottom: 20px;
-        }
+/* 右上角按钮 */
+.top-right-btn {
+    position: fixed;
+    top: 20px; right: 20px;
+    z-index: 998;
+    padding: 10px 18px;
+    background: #e955a7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.top-right-btn:hover {
+    background: #d645a2;
+}
 
-        .header h1 {
-            font-size: 28px;
-            color: #ff99cc;
-            margin-bottom: 10px;
-        }
+/* ========== 右上角堆叠气泡提示框 ========== */
+#toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
 
-        .header p {
-            font-size: 20px;
-            color: #e0c0ff;
-            margin-bottom: 10px;
-        }
+.toast-item {
+    padding: 12px 20px;
+    background: rgba(76, 175, 80, 0.9); /* 绿色 */
+    color: #fff;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 220px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateX(120%);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
 
-        .update-info {
-            font-size: 14px;
-            color: #ccc;
-        }
+.toast-item.show {
+    opacity: 1;
+    transform: translateX(0);
+}
 
-        /* 筛选栏 */
-        .filter-bar {
-            width: 90%;
-            margin: 0 auto 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-        }
+.toast-item.error {
+    background: rgba(244, 67, 54, 0.9); /* 失败红色 */
+}
+/* ======================================== */
 
-        .filter-btn {
-            padding: 18px 48px;
-            border: none;
-            border-radius: 20px;
-            background: #b388ff;
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
+/* 头部 */
+.header {
+    text-align: center;
+    padding: 40px 0;
+}
+.avatar {
+    width: 256px; height: 256px;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    margin-bottom: 20px;
+}
+.header h1 {
+    font-size: 28px;
+    color: #ff99cc;
+    margin-bottom: 10px;
+}
+.header p {
+    font-size: 20px;
+    color: #e0c0ff;
+}
+.update-info {
+    font-size: 14px;
+    color: #ccc;
+}
 
-        .filter-btn:hover, .filter-btn.active {
-            background: #805acb;
-            transform: scale(1.05);
-        }
+/* 筛选栏 */
+.filter-bar {
+    width: 90%;
+    margin: 0 auto 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+.filter-btn {
+    padding: 18px 48px;
+    border: none;
+    border-radius: 20px;
+    background: #b388ff;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.filter-btn:hover, .filter-btn.active {
+    background: #805acb;
+    transform: scale(1.05);
+}
 
-        /* 搜索和功能按钮 */
-        .search-bar {
-            width: 90%;
-            margin: 0 auto 20px;
-            display: flex;
-            gap: 10px;
-        }
+/* 搜索栏 */
+.search-bar {
+    width: 90%;
+    margin: 0 auto 20px;
+    display: flex;
+    gap: 10px;
+}
+.shuffle-btn, .random-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #ff80ab;
+    color: #fff;
+    cursor: pointer;
+}
+.shuffle-btn:hover, .random-btn:hover {
+    background: #f50057;
+}
+.search-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid #d1c4e9;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 16px;
+}
+.search-input::placeholder {
+    color: #e0e0e0;
+}
 
-        .shuffle-btn, .random-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            background: #ff80ab;
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
+/* 列表 */
+.list-container {
+    width: 90%;
+    margin: 0 auto;
+    max-height: 600px;
+    overflow-y: auto;
+    border-radius: 10px;
+    background: rgba(100, 60, 180, 0.5);
+    padding: 10px;
+}
+.list-container::-webkit-scrollbar { width: 8px; }
+.list-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.list-container::-webkit-scrollbar-thumb { background: #b388ff; border-radius: 4px; }
 
-        .search-input {
-            flex: 1;
-            padding: 10px 15px;
-            border: 2px solid #d1c4e9;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
-            font-size: 16px;
-        }
-
-        .search-input::placeholder {
-            color: #e0e0e0;
-        }
-
-        .shuffle-btn:hover, .random-btn:hover {
-            background: #f50057;
-        }
-
-        /* 列表容器 */
-        .list-container {
-            width: 90%;
-            margin: 0 auto;
-            max-height: 600px;
-            overflow-y: auto;
-            border-radius: 10px;
-            background: rgba(100, 60, 180, 0.5);
-            padding: 10px;
-        }
-
-        /* 自定义滚动条 */
-        .list-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .list-container::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-        }
-
-        .list-container::-webkit-scrollbar-thumb {
-            background: #b388ff;
-            border-radius: 4px;
-        }
-
-        /* 列表表头和行 */
-        .song-list {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .song-list th, .song-list td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .song-list th {
-            color: #ff99cc;
-            font-weight: bold;
-        }
-
-        .song-list tr:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* 加载提示 */
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #ccc;
-        }
+.song-list {
+    width: 100%;
+    border-collapse: collapse;
+}
+.song-list th, .song-list td {
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.song-list th { color: #ff99cc; }
+.song-list tr:hover {
+    background: rgba(255,255,255,0.1);
+    cursor: pointer;
+}
 </style>
 </head>
+
 <body>
 <!-- 右上角按钮 -->
 <button class="top-right-btn" onclick="window.open('https://qiyuanyuan.feishu.cn/wiki/ABozwohdai54eWkUhVfc49nLnCe?table=tblAyMnUJgpuWVqp&view=vewXxBNTOK','_blank')">前往路灯</button>
 
- <!-- 头部 -->
-    <div class="header">
-        <img src="./avatar.webp" alt="头像" class="avatar">
-        <h1>栖苑太困辽 与她的</h1>
-        <p id="song-count">0 首歌</p>
-        <div class="update-info">last update: 2026-05-14</div>
-    </div>
+<!-- 气泡容器 -->
+<div id="toast-container"></div>
+
+<!-- 头部 -->
+<div class="header">
+    <img src="./avatar.webp" alt="头像" class="avatar">
+    <h1>栖苑太困辽 与她的</h1>
+    <p id="song-count">0 首歌</p>
+    <div class="update-info">last update: 2026-05-14</div>
+</div>
+
+<!-- 筛选 -->
 <div class="filter-bar">
-  <button class="filter-btn" data-type="lang" data-val="all">全部语言</button>
-  <button class="filter-btn" data-type="lang" data-val="中文">中文</button>
-  <button class="filter-btn" data-type="lang" data-val="日文">日文</button>
-  <button class="filter-btn" data-type="lang" data-val="英文">英文</button>
-  <button class="filter-btn" data-type="style" data-val="all">全部风格</button>
-  <button class="filter-btn" data-type="style" data-val="甜歌">甜歌</button>
-  <button class="filter-btn" data-type="style" data-val="苦情">苦情</button>
-  <button class="filter-btn" data-type="qufeng" data-val="all">全部曲风</button>
-  <button class="filter-btn" data-type="qufeng" data-val="流行">流行</button>
-  <button class="filter-btn" data-type="qufeng" data-val="国风">国风</button>
+    <button class="filter-btn active" data-type="lang" data-val="all">全部语言</button>
+    <button class="filter-btn" data-type="lang" data-val="中文">中文</button>
+    <button class="filter-btn" data-type="lang" data-val="日文">日文</button>
+    <button class="filter-btn" data-type="lang" data-val="英文">英文</button>
+
+    <button class="filter-btn active" data-type="style" data-val="all">全部风格</button>
+    <button class="filter-btn" data-type="style" data-val="甜歌">甜歌</button>
+    <button class="filter-btn" data-type="style" data-val="苦情">苦情</button>
+
+    <button class="filter-btn active" data-type="qufeng" data-val="all">全部曲风</button>
+    <button class="filter-btn" data-type="qufeng" data-val="流行">流行</button>
+    <button class="filter-btn" data-type="qufeng" data-val="国风">国风</button>
 </div>
 
+<!-- 搜索 -->
 <div class="search-bar">
-  <button class="shuffle-btn">打乱顺序</button>
-  <input class="search-input" placeholder="搜索歌名/歌手">
-  <button class="random-btn">随机一首</button>
+    <button class="shuffle-btn">打乱顺序</button>
+    <input class="search-input" placeholder="搜索歌名/歌手">
+    <button class="random-btn">随机一首</button>
 </div>
 
+<!-- 歌单列表 -->
 <div class="list-container">
-<table class="song-list">
-<thead>
-<tr><th>#</th><th>歌名</th><th>歌手</th><th>语言</th><th>曲风</th><th>风格</th><th>切片</th></tr>
-</thead>
-<tbody id="list"></tbody>
-</table>
+    <table class="song-list">
+        <thead>
+            <tr><th>#</th><th>歌名</th><th>歌手</th><th>语言</th><th>曲风</th><th>风格</th><th>切片</th></tr>
+        </thead>
+        <tbody id="list"></tbody>
+    </table>
 </div>
 
 <script>
@@ -242,6 +247,25 @@ const allSongs = [{"genre":"流行","lang":"中文","singer":"鱼儿七","slice"
 let filtered = [...allSongs];
 let page = 1;
 const size = 20;
+
+// ========== 绿色堆叠气泡提示 ==========
+function showToast(msg, isError = false) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-item';
+    toast.textContent = msg;
+    if (isError) toast.classList.add('error');
+    container.appendChild(toast);
+
+    // 动画显示
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // 3秒后消失并移除
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
 
 // 渲染歌曲
 function render() {
@@ -264,18 +288,24 @@ function render() {
 // 点击整行复制
 function copyThis(index) {
     const item = filtered[index];
-    const text = `${item.title} - ${item.singer}`;
+    const text = `点歌 ${item.title} - ${item.singer}`;
     navigator.clipboard.writeText(text).then(() => {
-        alert("已复制：" + text);
+        showToast(`已复制：${text}`);
+    }).catch(err => {
+        showToast('复制失败，请手动复制', true);
     });
 }
 
 // 随机一首
 document.querySelector('.random-btn').onclick = () => {
-    if (filtered.length === 0) return alert('无歌曲');
+    if (filtered.length === 0) return showToast('暂无歌曲', true);
     const item = filtered[Math.floor(Math.random() * filtered.length)];
     const text = `点歌 ${item.title} - ${item.singer}`;
-    navigator.clipboard.writeText(text).then(() => alert("随机已复制：" + text));
+    navigator.clipboard.writeText(text).then(() => {
+        showToast(`随机已复制：${text}`);
+    }).catch(err => {
+        showToast('复制失败', true);
+    });
 };
 
 // 筛选
@@ -325,7 +355,7 @@ document.querySelector('.list-container').onscroll = function () {
     }
 };
 
-// 启动
+// 初始化
 render();
 </script>
 </body>
