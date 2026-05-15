@@ -15,7 +15,7 @@
 
 /* 背景 */
 body {
-    background: url('./bgi-w-idol.jpg') no-repeat center center fixed; 
+    background: url('./bgi-w-idol.jpg') no-repeat center center fixed;
     background-size: cover;
     color: #fff;
     position: relative;
@@ -46,7 +46,7 @@ body::before {
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 .top-right-btn:hover {
-    background: #d645a2;
+    background: #d645a7;
 }
 
 /* ========== 右上角堆叠气泡提示框 ========== */
@@ -59,10 +59,9 @@ body::before {
     flex-direction: column;
     gap: 8px;
 }
-
 .toast-item {
     padding: 12px 20px;
-    background: rgba(76, 175, 80, 0.9); /* 绿色 */
+    background: rgba(76, 175, 80, 0.9);
     color: #fff;
     border-radius: 6px;
     font-size: 14px;
@@ -73,24 +72,23 @@ body::before {
     transition: all 0.3s ease;
     pointer-events: none;
 }
-
 .toast-item.show {
     opacity: 1;
     transform: translateX(0);
 }
-
 .toast-item.error {
-    background: rgba(244, 67, 54, 0.9); /* 失败红色 */
+    background: rgba(244, 67, 54, 0.9);
 }
 /* ======================================== */
 
-/* 头部 */
+/* 头部信息 */
 .header {
     text-align: center;
     padding: 40px 0;
 }
 .avatar {
-    width: 256px; height: 256px;
+    width: 256px;
+    height: 256px;
     border-radius: 50%;
     border: 4px solid #fff;
     margin-bottom: 20px;
@@ -103,6 +101,7 @@ body::before {
 .header p {
     font-size: 20px;
     color: #e0c0ff;
+    margin-bottom: 10px;
 }
 .update-info {
     font-size: 14px;
@@ -116,6 +115,7 @@ body::before {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    align-items: center;
     justify-content: center;
 }
 .filter-btn {
@@ -132,7 +132,7 @@ body::before {
     transform: scale(1.05);
 }
 
-/* 搜索栏 */
+/* 搜索和功能按钮 - 电脑端完全还原 + 手机端完美不换行 */
 .search-bar {
     width: 90%;
     margin: 0 auto 20px;
@@ -145,7 +145,9 @@ body::before {
     border-radius: 8px;
     background: #ff80ab;
     color: #fff;
+    font-size: 16px;
     cursor: pointer;
+    white-space: nowrap;
 }
 .shuffle-btn:hover, .random-btn:hover {
     background: #f50057;
@@ -155,15 +157,16 @@ body::before {
     padding: 10px 15px;
     border: 2px solid #d1c4e9;
     border-radius: 8px;
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     color: #fff;
     font-size: 16px;
+    min-width: 0;
 }
 .search-input::placeholder {
     color: #e0e0e0;
 }
 
-/* 列表 */
+/* 列表容器 - 电脑端恢复原高度 */
 .list-container {
     width: 90%;
     margin: 0 auto;
@@ -173,10 +176,20 @@ body::before {
     background: rgba(100, 60, 180, 0.5);
     padding: 10px;
 }
-.list-container::-webkit-scrollbar { width: 8px; }
-.list-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 4px; }
-.list-container::-webkit-scrollbar-thumb { background: #b388ff; border-radius: 4px; }
+/* 自定义滚动条 */
+.list-container::-webkit-scrollbar {
+    width: 8px;
+}
+.list-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+.list-container::-webkit-scrollbar-thumb {
+    background: #b388ff;
+    border-radius: 4px;
+}
 
+/* 列表表头和行 */
 .song-list {
     width: 100%;
     border-collapse: collapse;
@@ -184,13 +197,41 @@ body::before {
 .song-list th, .song-list td {
     padding: 12px 8px;
     text-align: left;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
-.song-list th { color: #ff99cc; }
+.song-list th {
+    color: #ff99cc;
+    font-weight: bold;
+}
 .song-list tr:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     cursor: pointer;
 }
+
+/* ===================== 移动端优雅适配（不破坏电脑端） ===================== */
+@media (max-width: 768px) {
+    .header { padding: 20px 0; }
+    .avatar { width: 160px; height: 160px; }
+    .header h1 { font-size: 22px; }
+    .header p { font-size: 16px; }
+    
+    .filter-bar { width: 95%; }
+    .filter-btn { padding: 10px 20px; font-size: 14px; }
+    
+    .search-bar { width: 95%; }
+    .shuffle-btn, .random-btn { padding: 10px 12px; font-size: 14px; }
+    
+    .list-container { width: 95%; max-height: 480px; }
+    .song-list th, .song-list td { font-size: 14px; padding: 10px 5px; }
+}
+
+/* 小屏手机：强制搜索栏不换行，完美一行显示 */
+@media (max-width: 480px) {
+    .search-bar { flex-wrap: nowrap; }
+    .shuffle-btn, .random-btn { padding: 8px 10px; font-size: 12px; }
+    .search-input { font-size: 14px; padding: 8px 10px; }
+}
+/* ======================================================================== */
 </style>
 </head>
 
@@ -257,10 +298,8 @@ function showToast(msg, isError = false) {
     if (isError) toast.classList.add('error');
     container.appendChild(toast);
 
-    // 动画显示
     setTimeout(() => toast.classList.add('show'), 10);
 
-    // 3秒后消失并移除
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
@@ -291,7 +330,7 @@ function copyThis(index) {
     const text = `点歌 ${item.title} - ${item.singer}`;
     navigator.clipboard.writeText(text).then(() => {
         showToast(`已复制：${text}`);
-    }).catch(err => {
+    }).catch(() => {
         showToast('复制失败，请手动复制', true);
     });
 }
@@ -303,7 +342,7 @@ document.querySelector('.random-btn').onclick = () => {
     const text = `点歌 ${item.title} - ${item.singer}`;
     navigator.clipboard.writeText(text).then(() => {
         showToast(`随机已复制：${text}`);
-    }).catch(err => {
+    }).catch(() => {
         showToast('复制失败', true);
     });
 };
