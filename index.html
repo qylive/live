@@ -369,6 +369,19 @@ body::before {
     }
 }
 /* ======================================================================== */
+/* 付费标识小徽章 */
+.badge-sc {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #ffd700;
+  color: #000;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  white-space: nowrap;
+}
 </style>
 </head>
 
@@ -445,39 +458,54 @@ function showToast(msg, isError = false) {
 }
 
 // 渲染歌曲 - 适配PC端四列和移动端两行样式
+// ====================== 【可配置列表】以后在这里加歌名 ======================
+const paidSongList = [
+  "撞地球",
+  "枫叶城",
+  "免我蹉跎苦"
+];
+// ==========================================================================
+
 function render() {
-    const list = filtered.slice((page-1)*size, page*size);
-    const html = list.map((item, i) => {
-        const index = page*size-size + i + 1;
-        // 拼接类别：语言·曲风/风格（风格为空则只显示语言·曲风）
-        const category = `${item.lang} · ${item.genre}${item.style ? '/' + item.style : ''}`;
-        
-        return `
-            <!-- PC端行：四列布局 -->
-            <tr class="pc-row" onclick="copyThis(${page*size-size + i})">
-                <td>${index}</td>
-                <td>${item.title}</td>
-                <td>${item.singer}</td>
-                <td>${category}</td>
-            </tr>
-            <!-- 移动端行：左侧序号+标题+歌手，右侧类别 -->
-            <tr class="mobile-row" onclick="copyThis(${page*size-size + i})">
-                <td colspan="4">
-                    <div class="mobile-left">
-                        <span class="mobile-index">#${index}</span>
-                        <div class="mobile-title-wrap">
-                            <div class="mobile-title">${item.title}</div>
-                            <div class="mobile-singer">${item.singer}</div>
-                        </div>
-                    </div>
-                    <span class="mobile-category">${category}</span>
-                </td>
-            </tr>
-        `;
-    }).join('');
-    
-    page === 1 ? document.getElementById('list').innerHTML = html : document.getElementById('list').innerHTML += html;
-    document.getElementById('song-count').innerText = filtered.length + ' 首歌';
+  const list = filtered.slice((page - 1) * size, page * size);
+  const html = list.map((item, i) => {
+    const index = page * size - size + i + 1;
+    const category = `${item.lang}·${item.genre}${item.style ? '/' + item.style : ''}`;
+
+    // 判断是否显示徽章
+    const showBadge = paidSongList.includes(item.title);
+
+    return `
+      <tr class="pc-row" onclick="copyThis(${page * size - size + i})">
+        <td>${index}</td>
+        <td>
+          ${item.title}
+          ${showBadge ? '<span class="badge-sc">SC ¥30</span>' : ''}
+        </td>
+        <td>${item.singer}</td>
+        <td>${category}</td>
+      </tr>
+
+      <tr class="mobile-row" onclick="copyThis(${page * size - size + i})">
+        <td colspan="4">
+          <div class="mobile-left">
+            <span class="mobile-index">#${index}</span>
+            <div class="mobile-title-wrap">
+              <div class="mobile-title">
+                ${item.title}
+                ${showBadge ? '<span class="badge-sc" style="font-size:10px; padding:1px 4px;">SC ¥30</span>' : ''}
+              </div>
+              <div class="mobile-singer">${item.singer}</div>
+            </div>
+          </div>
+          <span class="mobile-category">${category}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  page === 1 ? document.getElementById('list').innerHTML = html : document.getElementById('list').innerHTML += html;
+  document.getElementById('song-count').innerText = filtered.length + ' 首歌';
 }
 
 // 点击整行复制
