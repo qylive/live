@@ -14,8 +14,9 @@
     font-family: "Microsoft Yahei", sans-serif;
 }
 
-/* 背景 */
+/* 背景 - 优化移动端背景展示 */
 body {
+    /* PC端正常居中显示 */
     background: url('./bgi-w-idol.jpg') no-repeat center center fixed;
     background-size: cover;
     color: #fff;
@@ -32,10 +33,12 @@ body::before {
     z-index: -1;
 }
 
-/* 右上角按钮 */
+/* 右上角按钮 - 核心调整：仅修改定位参数，保留原有样式 */
 .top-right-btn {
     position: fixed;
-    top: 20px; right: 20px;
+    /* 调整PC端位置：向右微调，向下微调，避免过于贴边 */
+    top: 25px; 
+    right: 15%; 
     z-index: 998;
     padding: 10px 18px;
     background: #e955a7;
@@ -109,9 +112,9 @@ body::before {
     color: #ccc;
 }
 
-/* 筛选栏 */
+/* 筛选栏 - 保留原有70%宽度，不修改 */
 .filter-bar {
-    width: 90%;
+    width: 70%;
     margin: 0 auto 20px;
     display: flex;
     flex-wrap: wrap;
@@ -133,9 +136,9 @@ body::before {
     transform: scale(1.05);
 }
 
-/* 搜索和功能按钮 - 电脑端完全还原 + 手机端完美不换行 */
+/* 搜索和功能按钮 - 保留原有70%宽度，不修改 */
 .search-bar {
-    width: 90%;
+    width: 70%;
     margin: 0 auto 20px;
     display: flex;
     gap: 10px;
@@ -167,9 +170,9 @@ body::before {
     color: #e0e0e0;
 }
 
-/* 列表容器 - 电脑端恢复原高度 */
+/* 列表容器 - 保留原有70%宽度和高度，不修改 */
 .list-container {
-    width: 90%;
+    width: 70%;
     margin: 0 auto;
     max-height: 600px;
     overflow-y: auto;
@@ -190,7 +193,7 @@ body::before {
     border-radius: 4px;
 }
 
-/* 列表表头和行 */
+/* 列表表头和行 - PC端四列样式 */
 .song-list {
     width: 100%;
     border-collapse: collapse;
@@ -204,13 +207,49 @@ body::before {
     color: #ff99cc;
     font-weight: bold;
 }
+/* 表格列宽比例：歌名:歌手:类别 = 4:4:1.5 */
+.song-list th:nth-child(2),
+.song-list td:nth-child(2) {
+  width: 40%;
+}
+.song-list th:nth-child(3),
+.song-list td:nth-child(3) {
+  width: 40%;
+}
+.song-list th:nth-child(4),
+.song-list td:nth-child(4) {
+  width: 15%;
+}
+/* 序号列自动占剩余 */
+.song-list th:nth-child(1),
+.song-list td:nth-child(1) {
+  width: auto;
+  white-space: nowrap;
+}
+/* PC端行样式 */
+.pc-row {
+    display: table-row;
+	line-height: 32px;
+}
 .song-list tr:hover {
     background: rgba(255, 255, 255, 0.1);
     cursor: pointer;
 }
+/* 移动端行容器（默认隐藏） */
+.mobile-row {
+    display: none;
+}
 
-/* ===================== 移动端优雅适配（不破坏电脑端） ===================== */
+/* ===================== 移动端优雅适配 ===================== */
 @media (max-width: 768px) {
+    /* 移动端背景调整：显示右侧30%内容 */
+    body {
+        background: url('./bgi-w-idol.jpg') no-repeat right center fixed;
+        background-size: cover;
+        /* 关键：将背景定位到右侧，只展示右边30% */
+        background-position-x: 70%;
+    }
+
     .header { padding: 20px 0; }
     .avatar { width: 160px; height: 160px; }
     .header h1 { font-size: 22px; }
@@ -223,7 +262,79 @@ body::before {
     .shuffle-btn, .random-btn { padding: 10px 12px; font-size: 14px; }
     
     .list-container { width: 95%; max-height: 480px; }
-    .song-list th, .song-list td { font-size: 14px; padding: 10px 5px; }
+    
+    /* 移动端表格样式重置 */
+    .song-list thead {
+        display: none;
+    }
+    /* 隐藏PC端行，显示移动端行 */
+    .pc-row {
+        display: none;
+    }
+    .mobile-row {
+        display: table-row;
+    }
+    .mobile-row > td {
+        padding: 15px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    /* 移动端左侧内容（序号+标题+歌手） */
+    .mobile-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        flex: 1;
+    }
+    /* 移动端序号 */
+    .mobile-index {
+        color: #ff99cc;
+        font-weight: bold;
+        font-size: 14px;
+        min-width: 20px;
+        margin-top: 2px;
+    }
+    /* 移动端标题歌手容器 */
+    .mobile-title-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    /* 移动端歌名和歌手 */
+    .mobile-title {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .mobile-singer {
+        font-size: 14px;
+        color: #ccc;
+    }
+    /* 移动端右侧类别 */
+    .mobile-category {
+        color: #e0c0ff;
+        font-size: 13px;
+        text-align: right;
+        min-width: 80px;
+        /* 确保类别垂直居中 */
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    /* 移动端行hover效果 */
+    .mobile-row:hover > td {
+        background: rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+    }
+
+    /* 移动端右上角按钮适配 */
+    .top-right-btn {
+        top: 15px;
+        right: 15px;
+        font-size: 18px;
+        padding: 8px 14px;
+    }
 }
 
 /* 小屏手机：强制搜索栏不换行，完美一行显示 */
@@ -231,6 +342,31 @@ body::before {
     .search-bar { flex-wrap: nowrap; }
     .shuffle-btn, .random-btn { padding: 8px 10px; font-size: 12px; }
     .search-input { font-size: 14px; padding: 8px 10px; }
+    
+    /* 小屏手机背景调整 */
+    body {
+        background-position-x: 80%;
+    }
+    
+    /* 小屏手机文字大小优化 */
+    .mobile-title {
+        font-size: 15px;
+    }
+    .mobile-singer {
+        font-size: 13px;
+    }
+    .mobile-category {
+        font-size: 12px;
+        min-width: 70px;
+    }
+
+    /* 小屏手机右上角按钮进一步适配 */
+    .top-right-btn {
+        top: 10px;
+        right: 10px;
+        font-size: 16px;
+        padding: 6px 12px;
+    }
 }
 /* ======================================================================== */
 </style>
@@ -245,10 +381,10 @@ body::before {
 
 <!-- 头部 -->
 <div class="header">
-    <img src="./avatar.webp" alt="头像" class="avatar">
+    <img src="./e22a6dd351d3eb09e7f238e264fd06a2303246676.jpg@560w_560h_1e_1c.avif" alt="头像" class="avatar">
     <h1>栖苑太困辽 与她的</h1>
     <p id="song-count">0 首歌</p>
-    <div class="update-info">last update: 2026-05-14</div>
+    <div class="update-info">last update: 2026-05-19</div>
 </div>
 
 <!-- 筛选 -->
@@ -278,7 +414,8 @@ body::before {
 <div class="list-container">
     <table class="song-list">
         <thead>
-            <tr><th>#</th><th>歌名</th><th>歌手</th><th>语言</th><th>曲风</th><th>风格</th></tr>
+            <!-- PC端表头：序号-歌名-歌手-类别 -->
+            <tr><th>#</th><th>歌名</th><th>歌手</th><th>类别</th></tr>
         </thead>
         <tbody id="list"></tbody>
     </table>
@@ -307,19 +444,38 @@ function showToast(msg, isError = false) {
     }, 3000);
 }
 
-// 渲染歌曲
+// 渲染歌曲 - 适配PC端四列和移动端两行样式
 function render() {
     const list = filtered.slice((page-1)*size, page*size);
-    const html = list.map((item, i) => `
-        <tr onclick="copyThis(${page*size-size + i})">
-            <td>${page*size-size + i + 1}</td>
-            <td>${item.title}</td>
-            <td>${item.singer}</td>
-            <td>${item.lang}</td>
-            <td>${item.genre}</td>
-            <td>${item.style || '-'}</td>
-        </tr>
-    `).join('');
+    const html = list.map((item, i) => {
+        const index = page*size-size + i + 1;
+        // 拼接类别：语言·曲风/风格（风格为空则只显示语言·曲风）
+        const category = `${item.lang} · ${item.genre}${item.style ? '/' + item.style : ''}`;
+        
+        return `
+            <!-- PC端行：四列布局 -->
+            <tr class="pc-row" onclick="copyThis(${page*size-size + i})">
+                <td>${index}</td>
+                <td>${item.title}</td>
+                <td>${item.singer}</td>
+                <td>${category}</td>
+            </tr>
+            <!-- 移动端行：左侧序号+标题+歌手，右侧类别 -->
+            <tr class="mobile-row" onclick="copyThis(${page*size-size + i})">
+                <td colspan="4">
+                    <div class="mobile-left">
+                        <span class="mobile-index">#${index}</span>
+                        <div class="mobile-title-wrap">
+                            <div class="mobile-title">${item.title}</div>
+                            <div class="mobile-singer">${item.singer}</div>
+                        </div>
+                    </div>
+                    <span class="mobile-category">${category}</span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
     page === 1 ? document.getElementById('list').innerHTML = html : document.getElementById('list').innerHTML += html;
     document.getElementById('song-count').innerText = filtered.length + ' 首歌';
 }
