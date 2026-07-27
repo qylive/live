@@ -15,8 +15,6 @@
 }
 /* 背景 - 优化移动端背景展示 */
 body {
-    /* PC端正常居中显示 */
-    background: url('./bgi-w-idol.jpg') no-repeat center center fixed;
     background-size: cover;
     color: #fff;
     position: relative;
@@ -564,6 +562,38 @@ body::before {
     </table>
 </div>
 <script>
+// 随机背景图片数组
+const bgList = [
+    "bgi-w-idol.jpg",
+    "bgi-w-witch.jpg"
+];
+// 随机选择一张并设置背景，分开赋值防止覆盖background-size
+function setRandomBg() {
+    const randomImg = bgList[Math.floor(Math.random() * bgList.length)];
+    const winWidth = window.innerWidth;
+    let posX;
+
+    if (randomImg === "bgi-w-idol.jpg") {
+        if (winWidth <= 480) posX = "80%";
+        else if (winWidth <= 768) posX = "70%";
+        else posX = "center";
+    } else {
+        // bgi-w-witch：PC居中，平板15%，小屏10%
+        if (winWidth <= 480) posX = "10%";
+        else if (winWidth <= 768) posX = "15%";
+        else posX = "center";
+    }
+
+    // 分开设置图片与位置，不覆盖background-size
+    document.body.style.backgroundImage = `url(${randomImg})`;
+    document.body.style.backgroundRepeat = "no-repeat";
+    document.body.style.backgroundAttachment = "fixed";
+    document.body.style.backgroundPosition = posX;
+}
+// 页面载入执行
+setRandomBg();
+// 窗口缩放自动重算位置
+window.addEventListener('resize', setRandomBg);
 let allSongs = [];
 let filtered = [];
 let page = 1;
