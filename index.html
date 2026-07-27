@@ -583,13 +583,13 @@ function showToast(msg, isError = false) {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+// 渲染歌曲 - 适配PC端四列和移动端两行样式
 // ====================== 【可配置列表】以后在这里加歌名 ======================
 const paidSongList = [
   "撞地球",
   "枫叶城",
   "免我蹉跎苦"
 ];
-// ==========================================================================
 // 从同级 songs.json 加载歌曲数据
 async function loadSongJson() {
     try {
@@ -603,7 +603,7 @@ async function loadSongJson() {
         showToast('歌单文件加载失败，请检查songs.json', true);
     }
 }
-// 渲染歌曲 - 适配PC端四列和移动端两行样式
+// ==========================================================================
 function render() {
   const list = filtered.slice((page - 1) * size, page * size);
   const html = list.map((item, i) => {
@@ -651,6 +651,7 @@ function copyThis(index) {
         showToast('复制失败，请手动复制', true);
     });
 }
+
 // 弹窗DOM元素绑定（移除关闭按钮）
 const randomModal = document.getElementById('randomModal');
 const modalSongTitle = document.getElementById('modalSongTitle');
@@ -660,6 +661,7 @@ const tagGenre = document.getElementById('tagGenre');
 const tagStyle = document.getElementById('tagStyle');
 const modalCopyBtn = document.getElementById('modalCopyBtn');
 const modalReRandomBtn = document.getElementById('modalReRandomBtn');
+
 // 刷新随机歌曲、填充弹窗所有内容
 function refreshRandomSong() {
     if (filtered.length === 0) {
@@ -670,15 +672,19 @@ function refreshRandomSong() {
     // 随机抽取筛选后的歌曲
     currentRandomSong = filtered[Math.floor(Math.random() * filtered.length)];
     const isPaid = paidSongList.includes(currentRandomSong.title);
+
     // 填充歌名+付费徽章
     let titleHtml = currentRandomSong.title;
     if(isPaid) titleHtml += `<span class="modal-title-badge">SC ¥30</span>`;
     modalSongTitle.innerHTML = titleHtml;
+
     // 填充歌手
     modalSingerText.textContent = `歌手：${currentRandomSong.singer}`;
+
     // 基础两个标签必显示
     tagLang.textContent = currentRandomSong.lang;
     tagGenre.textContent = currentRandomSong.genre;
+
     // 风格为空则隐藏标签，有内容才展示
     if(currentRandomSong.style && currentRandomSong.style.trim() !== ''){
         tagStyle.textContent = currentRandomSong.style;
@@ -687,10 +693,13 @@ function refreshRandomSong() {
         tagStyle.style.display = 'none';
     }
 }
+
 // 打开弹窗
 function openRandomModal(){
     refreshRandomSong();
+    randomModal.classList.add('show');
 }
+
 // 复制歌名
 function copyModalSong(){
     if(!currentRandomSong) return;
@@ -701,6 +710,7 @@ function copyModalSong(){
         showToast('复制失败，请手动复制文本', true);
     });
 }
+
 // 绑定所有点击事件
 modalCopyBtn.onclick = copyModalSong;
 modalReRandomBtn.onclick = refreshRandomSong;
@@ -710,8 +720,10 @@ randomModal.onclick = function(e){
         randomModal.classList.remove('show');
     }
 }
+
 // 随机一首按钮绑定打开弹窗
 document.querySelector('.random-btn').onclick = openRandomModal;
+
 // 筛选
 document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.onclick = () => {
@@ -753,7 +765,7 @@ document.querySelector('.list-container').onscroll = function () {
         }
     }
 };
-// 初始化：加载json文件，不再直接render
+// 初始化加载本地js歌单文件（支持双击打开本地html）
 loadSongJson();
 </script>
 </body>
