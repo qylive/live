@@ -640,14 +640,17 @@ function render() {
   const html = list.map((item, i) => {
     const index = page * size - size + i + 1;
     const category = `${item.lang}·${item.genre}${item.style ? '/' + item.style : ''}`;
-    // 判断是否显示徽章
-    const showBadge = paidSongList.includes(item.title);
+    // 判断是否展示徽章
+    const showBadge = paidSongList.includes(item.title) || (item.sc && item.sc.trim() !== '');
+    // sc兜底30：空/空白则用30
+    const scVal = item.sc?.trim() || "30";
+    const badgeText = `SC ¥${scVal}`;
     return `
       <tr class="pc-row" onclick="copyThis(${page * size - size + i})">
         <td>${index}</td>
         <td>
           ${item.title}
-          ${showBadge ? '<span class="badge-sc">SC ¥30</span>' : ''}
+          ${showBadge ? `<span class="badge-sc">${badgeText}</span>` : ''}
         </td>
         <td>${item.singer}</td>
         <td>${category}</td>
@@ -659,7 +662,7 @@ function render() {
             <div class="mobile-title-wrap">
               <div class="mobile-title">
                 ${item.title}
-                ${showBadge ? '<span class="badge-sc" style="font-size:10px; padding:1px 4px;">SC ¥30</span>' : ''}
+                ${showBadge ? `<span class="badge-sc" style="font-size:10px; padding:1px 4px;">${badgeText}</span>` : ''}
               </div>
               <div class="mobile-singer">${item.singer}</div>
             </div>
@@ -702,11 +705,15 @@ function refreshRandomSong() {
     }
     // 随机抽取筛选后的歌曲
     currentRandomSong = filtered[Math.floor(Math.random() * filtered.length)];
-    const isPaid = paidSongList.includes(currentRandomSong.title);
-
-    // 填充歌名+付费徽章
+    const isPaid = paidSongList.includes(currentRandomSong.title) || (currentRandomSong.sc && currentRandomSong.sc.trim() !== '');
+    // sc兜底30
+    const scVal = currentRandomSong.sc?.trim() || "30";
+    const modalBadgeText = `SC ¥${scVal}`;
+    // 填充歌名+动态付费徽章
     let titleHtml = currentRandomSong.title;
-    if(isPaid) titleHtml += `<span class="modal-title-badge">SC ¥30</span>`;
+    if(isPaid) {
+        titleHtml += `<span class="modal-title-badge">${modalBadgeText}</span>`;
+    }
     modalSongTitle.innerHTML = titleHtml;
 
     // 填充歌手
