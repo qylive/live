@@ -126,228 +126,213 @@
         background: #f56c6c;
     }
 </style>
-<!-- 引入Excel解析工具 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h2>歌单更新</h2>
-
-        <!-- 使用简易步骤说明 -->
         <div class="step-desc">
-            使用步骤：
-            1. 填入你的Github密钥；
-            2. 点击按钮选择存放歌曲的Excel表格；
-            3. 表格内容会自动转换并显示在下方文本框；
-            4. 确认无误后点击提交，自动更新线上歌单并刷新页面更新日期。
+            操作步骤：
+            1. 填入你的Github个人密钥；
+            2. 点击按钮选择Excel歌曲表格；
+            3. 表格会自动转换成预览数据；
+            4. 确认内容无误，点击提交同步线上歌单与更新日期。
         </div>
-
-        <!-- Github密钥输入 -->
         <div class="item-box">
-            <label>Github个人密钥</label>
-            <input type="password" id="githubToken" placeholder="粘贴你复制好的Github密钥">
+            <label>个人密钥</label>
+            <input type="password" id="githubToken" placeholder="粘贴你的密钥">
             <div class="tip">密钥需要拥有修改这个歌单网站的权限，仅自己使用，不要发给别人</div>
         </div>
-
-        <!-- 上传&提交按钮区域 -->
         <div class="btn-group">
             <button class="btn btn-upload" id="uploadBtn">选择Excel表格</button>
             <button class="btn btn-push" id="pushBtn" disabled>提交更新到线上网站</button>
-            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+            <input type="file" id="fileInput" style="display: none;" accept=".xlsx,.xls">
         </div>
-
-        <!-- 转换结果预览框 -->
         <div class="item-box">
-            <label>表格转换结果预览（内容较多可上下滑动查看）</label>
-            <textarea id="jsonBox" readonly placeholder="选择表格后，转换好的数据会显示在这里，确认无误再提交"></textarea>
+            <label>转换结果预览（长内容可上下滑动）</label>
+            <textarea id="jsonBox" readonly placeholder="导入表格后，数据会显示在这里"></textarea>
         </div>
     </div>
-
-    <!-- 消息弹窗 -->
     <div class="toast" id="toast"></div>
+<script>
+// 仓库固定配置，分支固定main
+const REPO_OWNER = 'qylive';
+const REPO_NAME = 'live';
+const TARGET_JSON_FILE = 'test.json';
+const TARGET_HTML_FILE = 'index.html';
+const FIX_BRANCH = 'main';
+let finalJson = null;
 
-    <script>
-        // 仓库固定信息，分支固定main无需用户输入
-        const REPO_OWNER = 'qylive';
-        const REPO_NAME = 'live';
-        const TARGET_JSON_FILE = 'test.json';
-        const TARGET_HTML_FILE = 'index.html';
-        const FIX_BRANCH = 'main'; // 写死分支
-        let finalJson = null;
+const uploadBtn = document.getElementById('uploadBtn');
+const fileInput = document.getElementById('fileInput');
+const jsonBox = document.getElementById('jsonBox');
+const pushBtn = document.getElementById('pushBtn');
+const githubToken = document.getElementById('githubToken');
 
-        // DOM元素
-        const uploadBtn = document.getElementById('uploadBtn');
-        const fileInput = document.getElementById('fileInput');
-        const jsonBox = document.getElementById('jsonBox');
-        const pushBtn = document.getElementById('pushBtn');
-        const githubToken = document.getElementById('githubToken');
+// 弹窗提示
+function showToast(msg, type = 'default') {
+    const toastEl = document.getElementById('toast');
+    toastEl.className = 'toast show ' + type;
+    toastEl.innerText = msg;
+    setTimeout(() => toastEl.className = 'toast', 2800);
+}
 
-        // 弹出提示文字
-        function showToast(msg, type = 'default') {
-            const toastEl = document.getElementById('toast');
-            toastEl.className = 'toast show ' + type;
-            toastEl.innerText = msg;
-            setTimeout(() => {
-                toastEl.className = 'toast';
-            }, 2800);
+// 语言标准化处理
+function normalizeLang(lang) {
+    if (!lang) return '';
+    const s = lang.toString().trim();
+    if (s.includes('中')) return '中文';
+    if (s.includes('英')) return '英文';
+    if (s.includes('日')) return '日文';
+    return s;
+}
+
+// 获取当日日期 YYYY-MM-DD
+function getTodayDate() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+// 优化Github请求头，标准API版本标识，减少预检失败概率
+function getApiHeaders(token) {
+    return {
+        "Authorization": `token ${token}`,
+        "Accept": "application/vnd.github.v3+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+    };
+}
+
+// 原版无代理单文件更新
+async function updateSingleFile(token, filePath, newContent, commitMsg) {
+    const getUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}?ref=${FIX_BRANCH}`;
+    const getRes = await fetch(getUrl, { headers: getApiHeaders(token) });
+    if (!getRes.ok) {
+        const errInfo = await getRes.json().catch(() => ({}));
+        throw new Error(`读取文件失败：${errInfo.message || getRes.status}，请检查密钥权限`);
+    }
+    const fileInfo = await getRes.json();
+    const b64 = btoa(unescape(encodeURIComponent(newContent)));
+    const putUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`;
+    const putRes = await fetch(putUrl, {
+        method: 'PUT',
+        headers: {
+            ...getApiHeaders(token),
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            message: commitMsg,
+            content: b64,
+            sha: fileInfo.sha,
+            branch: FIX_BRANCH
+        })
+    });
+    if (!putRes.ok) {
+        const errInfo = await putRes.json().catch(() => ({}));
+        throw new Error(`上传失败：${errInfo.message || putRes.status}`);
+    }
+    return true;
+}
+
+// 选择文件
+uploadBtn.onclick = () => fileInput.click();
+
+// 解析Excel
+fileInput.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allow = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel'];
+    if (!allow.includes(file.type) && !/\.xlsx?$/i.test(file.name)) {
+        showToast('仅支持 xlsx / xls 表格', 'error');
+        return;
+    }
+    try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, {type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(sheet, {header:1});
+        const rows = raw.slice(1);
+        if (rows.length === 0) {
+            showToast('表格无歌曲数据', 'error');
+            jsonBox.value = '';
+            finalJson = null;
+            pushBtn.disabled = true;
+            return;
         }
-
-        // 自动统一语言文字（含/英/日自动替换标准文字）
-        function normalizeLang(lang) {
-            if (!lang) return '';
-            const langStr = lang.toString().trim();
-            if (langStr.includes('中')) return '中文';
-            if (langStr.includes('英')) return '英文';
-            if (langStr.includes('日')) return '日文';
-            return langStr;
-        }
-
-        // 获取今天日期，格式：2026-07-30
-        function getTodayDate() {
-            const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        // 通用更新单个文件函数
-        async function updateSingleFile(token, filePath, newContent, commitMsg) {
-            // 先读取线上现有文件
-            const getRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}?ref=${FIX_BRANCH}`, {
-                headers: {
-                    Authorization: `token ${token}`,
-                    Accept: 'application/vnd.github.v3+json'
-                }
-            });
-            if (!getRes.ok) throw new Error('线上文件读取失败，请检查密钥是否正确');
-            const fileInfo = await getRes.json();
-            // 内容转编码
-            const contentB64 = btoa(unescape(encodeURIComponent(newContent)));
-            // 上传更新
-            const putBody = {
-                message: commitMsg,
-                content: contentB64,
-                sha: fileInfo.sha,
-                branch: FIX_BRANCH
-            };
-            const putRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/contents/${filePath}`, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `token ${token}`,
-                    Accept: 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(putBody)
-            });
-            if (!putRes.ok) throw new Error('文件上传失败，密钥权限不足');
-            return true;
-        }
-
-        // 点击唤起文件选择
-        uploadBtn.addEventListener('click', () => fileInput.click());
-
-        // 读取并解析Excel表格
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            // 仅允许表格文件
-            const allowType = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
-            if (!allowType.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
-                showToast('请选择后缀为 .xlsx / .xls 的表格文件', 'error');
-                return;
-            }
-            try {
-                const buf = await file.arrayBuffer();
-                const wb = XLSX.read(buf, { type: 'array' });
-                const sheet = wb.Sheets[wb.SheetNames[0]];
-                const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                const rows = rawData.slice(1);
-                if (rows.length === 0) {
-                    showToast('表格里没有歌曲数据', 'error');
-                    jsonBox.value = '';
-                    finalJson = null;
-                    pushBtn.disabled = true;
-                    return;
-                }
-                const output = [];
-                for (let i = 0; i < rows.length; i++) {
-                    const r = rows[i];
-                    const title = r[0]?.toString().trim() || '';
-                    const singer = r[1]?.toString().trim() || '';
-                    const typeRaw = r[2]?.toString().trim() || '';
-                    const rawLang = r[3]?.toString().trim() || '';
-                    const scRaw = r[4]?.toString().trim() || '';
-                    // 歌曲名、歌手不能为空
-                    if (!title || !singer) {
-                        showToast(`第${i+2}行缺少歌曲名或歌手，无法转换`, 'error');
-                        jsonBox.value = '';
-                        finalJson = null;
-                        pushBtn.disabled = true;
-                        return;
-                    }
-                    // 拆分曲风、风格
-                    let genre = '', style = '';
-                    if (typeRaw.includes(';')) {
-                        const sp = type.split(';');
-                        genre = sp[0].trim();
-                        style = sp[1]?.trim() || '';
-                    } else {
-                        genre = typeRaw;
-                    }
-                    const lang = normalizeLang(rawLang);
-                    output.push({ genre, lang, singer, style, sc: scRaw, title });
-                }
-                // 展示转换结果
-                finalJson = output;
-                jsonBox.value = JSON.stringify(output, null, 2);
-                pushBtn.disabled = false;
-                showToast('表格转换完成，可以提交更新', 'success');
-            } catch (err) {
-                console.error(err);
-                showToast('表格读取失败，请检查文件是否损坏', 'error');
+        const list = [];
+        for(let i=0;i<rows.length;i++){
+            const r = rows[i];
+            const title = r[0]?.toString().trim() || '';
+            const singer = r[1]?.toString().trim() || '';
+            const typeRaw = r[2]?.toString().trim() || '';
+            const rawLang = r[3]?.toString().trim() || '';
+            const sc = r[4]?.toString().trim() || '';
+            if (!title || !singer) {
+                showToast(`第${i+2}行缺少歌名或歌手，无法转换`, 'error');
                 jsonBox.value = '';
                 finalJson = null;
                 pushBtn.disabled = true;
+                return;
             }
-        });
-
-        // 提交更新按钮逻辑
-        pushBtn.addEventListener('click', async () => {
-            const token = githubToken.value.trim();
-            const today = getTodayDate();
-            if (!token) return showToast('请先填入Github密钥', 'error');
-            if (!finalJson) return showToast('请先选择歌曲表格转换数据', 'error');
-            pushBtn.disabled = true;
-            try {
-                // 第一步：更新歌单文件
-                showToast('正在更新线上歌曲列表...');
-                const jsonText = JSON.stringify(finalJson, null, 2);
-                await updateSingleFile(token, TARGET_JSON_FILE, jsonText, "更新歌单歌曲");
-
-                // 第二步：更新网站底部更新日期
-                showToast('正在同步页面更新时间...');
-                // 读取现有页面代码
-                const htmlGet = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${TARGET_HTML_FILE}?ref=${FIX_BRANCH}`, {
-                    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
-                });
-                if (!htmlGet.ok) throw new Error('读取网站页面失败');
-                const htmlInfo = await htmlGet.json();
-                let htmlRaw = decodeURIComponent(escape(atob(htmlInfo.content)));
-                // 替换日期文字
-                const reg = /(<div class="update-info">last update: )(\d{4}-\d{2}-\d{2})(<\/div>)/;
-                if (!reg.test(htmlRaw)) throw new Error('找不到页面更新时间文字，无法修改');
-                htmlRaw = htmlRaw.replace(reg, `$1${today}$3`);
-                await updateSingleFile(token, TARGET_HTML_FILE, htmlRaw, `更新页面最后更新日期为${today}`);
-
-                showToast(`全部更新成功！线上歌单已同步，更新日期改为${today}`, 'success');
-            } catch (err) {
-                console.error(err);
-                showToast('更新失败：' + err.message, 'error');
-            } finally {
-                pushBtn.disabled = false;
+            let genre = '', style = '';
+            if (typeRaw.includes(';')) {
+                const arr = typeRaw.split(';');
+                genre = arr[0].trim();
+                style = arr[1]?.trim() || '';
+            } else {
+                genre = typeRaw;
             }
-        });
-    </script>
+            list.push({
+                genre,
+                lang: normalizeLang(rawLang),
+                singer,
+                style,
+                sc,
+                title
+            });
+        }
+        finalJson = list;
+        jsonBox.value = JSON.stringify(list, null, 2);
+        pushBtn.disabled = false;
+        showToast('表格转换完成，可以提交', 'success');
+    } catch (err) {
+        showToast('表格读取失败：' + err.message, 'error');
+        jsonBox.value = '';
+        finalJson = null;
+        pushBtn.disabled = true;
+    }
+}
+
+// 提交按钮逻辑
+pushBtn.onclick = async () => {
+    const token = githubToken.value.trim();
+    const today = getTodayDate();
+    if (!token) return showToast('请填写Github密钥', 'error');
+    if (!finalJson) return showToast('请先导入表格', 'error');
+    pushBtn.disabled = true;
+    try {
+        showToast('正在更新线上歌曲列表...');
+        await updateSingleFile(token, TARGET_JSON_FILE, JSON.stringify(finalJson, null, 2), '更新歌曲列表数据');
+        showToast('正在同步页面更新时间...');
+        // 读取并修改index.html日期
+        const htmlUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${TARGET_HTML_FILE}?ref=${FIX_BRANCH}`;
+        const htmlGet = await fetch(htmlUrl, { headers: getApiHeaders(token) });
+        if (!htmlGet.ok) throw new Error('读取网站页面失败');
+        const htmlInfo = await htmlGet.json();
+        let htmlText = decodeURIComponent(escape(atob(htmlInfo.content)));
+        const reg = /(<div class="update-info">last update: )(\d{4}-\d{2}-\d{2})(<\/div>)/;
+        if (!reg.test(htmlText)) throw new Error('页面找不到更新日期文字，无法修改');
+        htmlText = htmlText.replace(reg, `$1${today}$3`);
+        await updateSingleFile(token, TARGET_HTML_FILE, htmlText, `更新页面最后更新日期${today}`);
+        showToast(`全部更新成功！线上歌单与更新日期已同步为${today}`, 'success');
+    } catch (err) {
+        showToast('更新失败：' + err.message, 'error');
+    } finally {
+        pushBtn.disabled = false;
+    }
+}
+</script>
 </body>
 </html>
