@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel歌曲列表转JSON并推送Github</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        body {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #f5f7fa;
+        }
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        h2 {
+            text-align: center;
+            color: #222;
+            margin-bottom: 28px;
+        }
+        .item-box {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .btn {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn-upload {
+            background: #409eff;
+            color: white;
+            margin-right: 12px;
+        }
+        .btn-push {
+            background: #67c23a;
+            color: white;
+        }
+        .btn:disabled {
+            background: #c0c4cc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #jsonBox {
+            width: 100%;
+            height: 360px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            padding: 12px;
+            overflow-y: auto;
+            resize: none;
+            background: #fafafa;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .btn-group {
+            margin: 20px 0;
+        }
+
+        /* Toast弹窗样式 */
+        .toast {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #303133;
+            color: #fff;
+            border-radius: 6px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .toast.success {
+            background: #67c23a;
+        }
+        .toast.error {
+            background: #f56c6c;
+        }
+    </style>
+    <!-- 引入SheetJS解析Excel CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Excel歌曲表格转JSON并更新Github songs.json</h2>
+
+        <!-- Github认证区域 -->
+        <div class="item-box">
+            <label>Github个人访问令牌(PAT)</label>
+            <input type="password" id="githubToken" placeholder="填写你的Github PAT，需要仓库写入权限">
+        </div>
+        <div class="item-box">
+            <label>推送分支（默认main）</label>
+            <input type="text" id="branch" value="main" placeholder="分支名称">
+        </div>
+
+        <!-- 上传按钮区域 -->
+        <div class="btn-group">
+            <button class="btn btn-upload" id="uploadBtn">选择Excel文件上传解析</button>
+            <button class="btn btn-push" id="pushBtn" disabled>推送JSON至Github仓库</button>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+        </div>
+
+        <!-- JSON预览滚动文本框 -->
+        <div class="item-box">
+            <label>生成JSON预览（固定尺寸，可滚轮滚动）</label>
+            <textarea id="jsonBox" readonly placeholder="上传Excel后，解析生成的JSON会展示在这里..."></textarea>
+        </div>
+    </div>
+
+    <!-- Toast提示容器 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 全局变量
+        const REPO_OWNER = 'qylive';
+        const REPO_NAME = 'live';
+        const TARGET_FILE = 'test.json';
+        let finalJson = null; // 存储解析完成的JSON数组
+
+        // DOM元素
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const jsonBox = document.getElementById('jsonBox');
+        const pushBtn = document.getElementById('pushBtn');
+        const githubToken = document.getElementById('githubToken');
+        const branchInput = document.getElementById('branch');
+        const toastEl = document.getElementById('toast');
+
+        // Toast消息工具
+        function showToast(msg, type = 'default') {
+            toastEl.className = 'toast show ' + type;
+            toastEl.innerText = msg;
+            setTimeout(() => {
+                toastEl.className = 'toast';
+            }, 2500);
+        }
+
+        // 语言字段模糊匹配处理
+        function normalizeLang(lang) {
+            if (!lang) return '';
+            const langStr = lang.toString().trim();
+            if (langStr.includes('中')) return '中文';
+            if (langStr.includes('英')) return '英文';
+            if (langStr.includes('日')) return '日文';
+            return langStr; // 未匹配到则保留原值
+        }
+
+        // 点击按钮唤起文件选择
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Excel文件解析逻辑
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 校验文件格式
+            if (!['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'].includes(file.type)
+                && !file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                showToast('请上传 xlsx / xls 格式Excel文件', 'error');
+                return;
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                // 去除表头行（第一行），按列位置读取数据
+                // 第1列=歌曲名，第2列=歌手，第3列=类型，第4列=语言，第5列=SC金额，第6列=备注
+                const dataRows = sheetData.slice(1);
+                const resultArr = [];
+
+                if (dataRows.length === 0) {
+                    showToast('Excel表格内无有效歌曲数据', 'error');
+                    jsonBox.value = '';
+                    finalJson = null;
+                    pushBtn.disabled = true;
+                    return;
+                }
+
+                for (let rowIdx = 0; rowIdx < dataRows.length; rowIdx++) {
+                    const row = dataRows[rowIdx];
+                    // 取出每一列数据，空值赋值空字符串
+                    const title = row[0]?.toString().trim() || '';
+                    const singer = row[1]?.toString().trim() || '';
+                    const typeStr = row[2]?.toString().trim() || '';
+                    const rawLang = row[3]?.toString().trim() || '';
+                    const sc = row[4]?.toString().trim() || '';
+
+                    // 必填项校验：歌曲名、歌手不能为空
+                    if (!title || !singer) {
+                        showToast(`第${rowIdx+2}行：歌曲名或歌手不能为空，解析终止`, 'error');
+                        jsonBox.value = '';
+                        finalJson = null;
+                        pushBtn.disabled = true;
+                        return;
+                    }
+
+                    // 拆分 曲风;风格
+                    let genre = '', style = '';
+                    if (typeStr.includes(';')) {
+                        const splitArr = typeStr.split(';');
+                        genre = splitArr[0].trim();
+                        style = splitArr[1]?.trim() || '';
+                    } else {
+                        genre = typeStr;
+                    }
+
+                    // 语言字段模糊匹配处理
+                    const lang = normalizeLang(rawLang);
+
+                    // 组装标准JSON对象
+                    resultArr.push({
+                        genre,
+                        lang,
+                        singer,
+                        style,
+                        sc,
+                        title
+                    });
+                }
+
+                // 格式化JSON展示到文本框
+                finalJson = resultArr;
+                const prettyJson = JSON.stringify(resultArr, null, 2);
+                jsonBox.value = prettyJson;
+                pushBtn.disabled = false;
+                showToast('Excel解析完成，已生成JSON数据', 'success');
+
+            } catch (err) {
+                console.error(err);
+                showToast('文件解析失败：' + err.message, 'error');
+                jsonBox.value = '';
+                finalJson = null;
+                pushBtn.disabled = true;
+            }
+        });
+
+        // 推送JSON到Github仓库逻辑
+        pushBtn.addEventListener('click', async () => {
+            const token = githubToken.value.trim();
+            const branch = branchInput.value.trim() || 'main';
+            if (!token) {
+                showToast('请先填写Github个人访问令牌', 'error');
+                return;
+            }
+            if (!finalJson) {
+                showToast('暂无解析完成的JSON数据，请先上传Excel', 'error');
+                return;
+            }
+
+            try {
+                // 1. 获取文件SHA（更新Github文件必须携带sha值）
+                const getRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${TARGET_FILE}?ref=${branch}`, {
+                    headers: {
+                        Authorization: `token ${token}`,
+                        Accept: 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (!getRes.ok) {
+                    if (getRes.status === 404) {
+                        throw new Error(`分支${branch}下不存在songs.json文件`);
+                    } else if (getRes.status === 401) {
+                        throw new Error('令牌无效或权限不足');
+                    } else {
+                        throw new Error('获取文件信息失败');
+                    }
+                }
+                const fileInfo = await getRes.json();
+                const fileSha = fileInfo.sha;
+
+                // 2. 将JSON转为base64编码（Github接口要求）
+                const jsonStr = JSON.stringify(finalJson, null, 2);
+                const contentBase64 = btoa(unescape(encodeURIComponent(jsonStr)));
+
+                // 3. PUT请求覆盖更新文件
+                const putBody = {
+                    message: '更新歌曲列表数据',
+                    content: contentBase64,
+                    sha: fileSha,
+                    branch: branch
+                };
+
+                const putRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${TARGET_FILE}`, {
+                    method: 'PUT',
+                    headers: {
+                        Authorization: `token ${token}`,
+                        Accept: 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(putBody)
+                });
+
+                if (!putRes.ok) {
+                    const errData = await putRes.json();
+                    throw new Error(errData.message || '文件更新失败');
+                }
+
+                showToast('JSON文件上传Github成功 ✅', 'success');
+
+            } catch (err) {
+                console.error(err);
+                showToast('推送失败：' + err.message, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
