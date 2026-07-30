@@ -162,7 +162,6 @@
         const jsonBox = document.getElementById('jsonBox');
         const pushBtn = document.getElementById('pushBtn');
         const githubToken = document.getElementById('githubToken');
-        const branchInput = 'main';
         const toastEl = document.getElementById('toast');
 
         // Toast工具
@@ -260,7 +259,7 @@
         // 批量更新Github：同时修改songs.json + index.html更新日期
         pushBtn.addEventListener('click', async () => {
             const token = githubToken.value.trim();
-            const branch = branchInput.value.trim() || 'main';
+            const branch = 'main';
             const today = getTodayDate();
             if (!token) return showToast('请填写Github PAT令牌', 'error');
             if (!finalJson) return showToast('请先上传Excel生成JSON数据', 'error');
