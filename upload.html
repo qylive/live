@@ -132,11 +132,11 @@
     <div class="container">
         <h2>歌单更新</h2>
         <div class="step-desc">
-            操作步骤：
-            1. 填入你的Github个人密钥；
-            2. 点击按钮选择Excel歌曲表格；
-            3. 表格会自动转换成预览数据；
-            4. 确认内容无误，点击提交同步线上歌单与更新日期。
+            操作步骤：<br>
+            1. 填入你的个人密钥<br>
+            2. 点击按钮选择Excel歌曲表格<br>
+            3. 表格会自动转换成预览数据<br>
+            4. 确认内容无误，点击提交同步线上歌单与更新日期
         </div>
         <div class="item-box">
             <label>个人密钥</label>
@@ -144,8 +144,8 @@
             <div class="tip">密钥需要拥有修改这个歌单网站的权限，仅自己使用，不要发给别人</div>
         </div>
         <div class="btn-group">
-            <button class="btn btn-upload" id="uploadBtn">选择Excel表格</button>
-            <button class="btn btn-push" id="pushBtn" disabled>提交更新到线上网站</button>
+            <button class="btn btn-upload" id="uploadBtn">选择Excel</button>
+            <button class="btn btn-push" id="pushBtn" disabled>推送更新</button>
             <input type="file" id="fileInput" style="display: none;" accept=".xlsx,.xls">
         </div>
         <div class="item-box">
@@ -158,7 +158,7 @@
 // 仓库固定配置，分支固定main
 const REPO_OWNER = 'qylive';
 const REPO_NAME = 'live';
-const TARGET_JSON_FILE = 'test.json';
+const TARGET_JSON_FILE = 'songs.json';
 const TARGET_HTML_FILE = 'index.html';
 const FIX_BRANCH = 'main';
 let finalJson = null;
@@ -205,7 +205,7 @@ function getApiHeaders(token) {
     };
 }
 
-// 原版无代理单文件更新
+// 无代理单文件更新
 async function updateSingleFile(token, filePath, newContent, commitMsg) {
     const getUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}?ref=${FIX_BRANCH}`;
     const getRes = await fetch(getUrl, { headers: getApiHeaders(token) });
@@ -309,7 +309,7 @@ fileInput.onchange = async (e) => {
 pushBtn.onclick = async () => {
     const token = githubToken.value.trim();
     const today = getTodayDate();
-    if (!token) return showToast('请填写Github密钥', 'error');
+    if (!token) return showToast('请填写密钥', 'error');
     if (!finalJson) return showToast('请先导入表格', 'error');
     pushBtn.disabled = true;
     try {
