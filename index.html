@@ -11,7 +11,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Microsoft Yahei", sans-serif;
+    font-family "Microsoft Yahei", sans-serif;
 }
 /* 背景 - 优化移动端背景展示 */
 body {
@@ -28,24 +28,112 @@ body::before {
     background: rgba(120, 80, 200, 0.6);
     z-index: -1;
 }
-/* 右上角按钮 - 核心调整：仅修改定位参数，保留原有样式 */
+/* ========== 右上角按钮 现代化胶囊发光优化 ========== */
 .top-right-btn {
     position: fixed;
-    /* 调整PC端位置：向右微调，向下微调，避免过于贴边 */
     top: 25px; 
     right: 15%; 
     z-index: 998;
-    padding: 10px 18px;
-    background: #e955a7;
+    padding: 10px 24px;
+    border: 1px solid rgba(255,255,0.8);
+    border-radius: 20px;
+    background: linear-gradient(135deg, #db2777, #ec4899);
     color: #fff;
-    border: none;
-    border-radius: 8px;
+    font-weight: 600;
     font-size: 24px;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all 0.22s ease;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.2),
+        0 0 16px rgba(236,72,153,0.5),
+        inset 0 0 10px rgba(255,255,255,0.15);
 }
 .top-right-btn:hover {
-    background: #d645a7;
+    background: linear-gradient(135deg, #be185d, #db2777);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.35),
+        0 0 22px rgba(236,72,153,0.7),
+        inset 0 0 16px rgba(255,255,255,0.22);
+}
+.top-right-btn:active {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.25),
+        0 0 10px rgba(236,72,153,0.55),
+        inset 0 0 6px rgba(0,0,0,0.1);
+}
+/* ========== 新增：个人空间/直播间按钮栏样式 ========== */
+.user-link-bar {
+    width: 70%;
+    margin: 0 auto 16px;
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.user-link-btn {
+    padding: 12px 28px;
+    border: 1px solid rgba(255, 255, 0.85);
+    border-radius: 20px;
+    background: linear-gradient(135deg, #6b21a8, #8b5cf6);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    font-size: 16px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        0 0 18px rgba(139, 92, 246, 0.55),
+        inset 0 0 12px rgba(255, 255, 255, 0.16);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.user-link-btn .btn-icon {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.3;
+    opacity: 0.92;
+}
+.user-link-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    background: linear-gradient(135deg, #581c87, #7c3aed);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 0 24px rgba(139, 92, 246, 0.75),
+        inset 0 0 18px rgba(255, 255, 255, 0.24);
+}
+.user-link-btn:active {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.25),
+        0 0 12px rgba(139, 92, 246, 0.6),
+        inset 0 0 8px rgba(0, 0, 0, 0.12);
+}
+.user-link-btn.live {
+    background: linear-gradient(135deg, #ec4899, #f472b6);
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        0 0 18px rgba(236, 72, 153, 0.55),
+        inset 0 0 12px rgba(255, 255, 255, 0.16);
+}
+.user-link-btn.live:hover {
+    background: linear-gradient(135deg, #db2777, #ec4899);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 0 24px rgba(236, 72, 153, 0.75),
+        inset 0 0 18px rgba(255, 255, 255, 0.24);
+}
+.user-link-btn.live:active {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.25),
+        0 0 12px rgba(236, 72, 153, 0.6),
+        inset 0 0 8px rgba(0, 0, 0, 0.12);
 }
 /* ========== 右上角堆叠气泡提示框 ========== */
 #toast-container {
@@ -77,94 +165,186 @@ body::before {
 .toast-item.error {
     background: rgba(244, 67, 54, 0.9);
 }
-/* ======================================== */
-/* 头部信息 */
+/* ========== 头部布局【PC专用配置】 ========== */
 .header {
+    width: 70%;
+    margin: 0 auto 20px;
+    padding: 40px 0 15px 0; /* 上40px 下15px */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+}
+/* 头像容器禁止压缩 */
+.header-avatar-wrap {
+    flex-shrink: 0;
+}
+/* PC文字居中对齐 */
+.header-text-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     text-align: center;
-    padding: 40px 0;
+}
+/* 头像恢复256px原始尺寸 */
+.avatar-link {
+    display: inline-block;
+    text-decoration: none;
 }
 .avatar {
     width: 256px;
     height: 256px;
     border-radius: 50%;
     border: 4px solid #fff;
-    margin-bottom: 20px;
+    transition: transform 0.3s ease;
+}
+.avatar-link:hover .avatar {
+    transform: scale(1.05);
 }
 .header h1 {
     font-size: 28px;
     color: #ff99cc;
-    margin-bottom: 10px;
+    margin: 0;
 }
 .header p {
     font-size: 20px;
     color: #e0c0ff;
-    margin-bottom: 10px;
+    margin: 0;
 }
 .update-info {
     font-size: 14px;
     color: #ccc;
 }
-/* 筛选栏 - 保留原有70%宽度，不修改 */
+/* ========== PC端筛选栏（原始样式保留） ========== */
 .filter-bar {
     width: 70%;
     margin: 0 auto 20px;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
     justify-content: center;
 }
+/* 移动端分组容器 默认隐藏 */
+.filter-group-mobile {
+    display: none;
+    width: 95%;
+    margin: 0 auto 20px;
+}
+.filter-group {
+    margin-bottom: 14px;
+}
+.filter-group-title {
+    font-size: 15px;
+    color: #ffd8f0;
+    margin-bottom: 8px;
+}
+.filter-group-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start; /* 左对齐 */
+}
 .filter-btn {
-    padding: 18px 48px;
-    border: none;
+    padding: 14px 32px;
+    border: 1px solid rgba(255,255,255,0.75);
     border-radius: 20px;
-    background: #b388ff;
+    background: linear-gradient(135deg, #8b5cf6, #a78bfa);
     color: #fff;
+    font-weight: 500;
+    font-size: 15px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.22s ease;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.15),
+        0 0 12px rgba(139,92,246,0.4),
+        inset 0 0 8px rgba(255,255,255,0.12);
 }
-.filter-btn:hover, .filter-btn.active {
-    background: #805acb;
-    transform: scale(1.05);
+.filter-btn:hover {
+    transform: translateY(-2px) scale(1.04);
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.3),
+        0 0 18px rgba(139,92,246,0.6),
+        inset 0 0 14px rgba(255,255,255,0.2);
 }
-/* 搜索和功能按钮 - 保留原有70%宽度，不修改 */
+.filter-btn.active {
+    background: linear-gradient(135deg, #5b21b6, #7c3aed);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.4),
+        0 0 22px rgba(139,92,246,0.75),
+        inset 0 0 16px rgba(255,255,255,0.24);
+    transform: scale(1.04);
+}
+.filter-btn:active {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.2),
+        0 0 8px rgba(139,92,246,0.45),
+        inset 0 0 4px rgba(0,0,0,0.1);
+}
+/* ========== 搜索区打乱、随机按钮 统一粉色发光胶囊 ========== */
 .search-bar {
     width: 70%;
     margin: 0 auto 20px;
     display: flex;
-    gap: 10px;
+    gap: 12px;
 }
 .shuffle-btn, .random-btn {
     padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    background: #ff80ab;
+    border: 1px solid rgba(255,255,0.8);
+    border-radius: 20px;
+    background: linear-gradient(135deg, #ec4899, #f472b6);
     color: #fff;
+    font-weight: 500;
     font-size: 16px;
     cursor: pointer;
     white-space: nowrap;
+    transition: all 0.22s ease;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.18),
+        0 0 12px rgba(236,72,153,0.45),
+        inset 0 0 8px rgba(255,255,255,0.12);
 }
 .shuffle-btn:hover, .random-btn:hover {
-    background: #f50057;
+    background: linear-gradient(135deg, #db2777, #ec4899);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.32),
+        0 0 18px rgba(236,72,153,0.65),
+        inset 0 0 14px rgba(255,255,255,0.2);
+}
+.shuffle-btn:active, .random-btn:active {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.22),
+        0 0 8px rgba(236,72,153,0.5),
+        inset 0 0 4px rgba(0,0,0,0.1);
 }
 .search-input {
     flex: 1;
     padding: 10px 15px;
     border: 2px solid #d1c4e9;
-    border-radius: 8px;
+    border-radius: 20px;
     background: rgba(255, 255, 255, 0.2);
     color: #fff;
     font-size: 16px;
     min-width: 0;
+    transition: border 0.25s ease, box-shadow 0.25s ease;
+}
+.search-input:focus {
+    outline: none;
+    border-color: #b388ff;
+    box-shadow: 0 0 14px rgba(139,92,246,0.4);
 }
 .search-input::placeholder {
-    color: #e0e0e0;
+    color: #e0e0;
 }
-/* 列表容器 - 保留原有70%宽度和高度，不修改 */
+/* ========== 列表容器：PC高度提升至700px ========== */
 .list-container {
     width: 70%;
     margin: 0 auto;
-    max-height: 600px;
+    max-height: 700px;
     overflow-y: auto;
     border-radius: 10px;
     background: rgba(100, 60, 180, 0.5);
@@ -228,8 +408,7 @@ body::before {
 .mobile-row {
     display: none;
 }
-
-/* ========== 改版紧凑半透明弹窗（无关闭按钮、调整字号按钮间距） ========== */
+/* ========== 改版紧凑半透明弹窗 ========== */
 .random-modal-mask {
     position: fixed;
     inset: 0;
@@ -243,7 +422,6 @@ body::before {
 .random-modal-mask.show {
     display: flex;
 }
-/* 弹窗改为更高透明度半透底色 */
 .random-modal-box {
     width: 800px;
     max-width: 100%;
@@ -253,8 +431,6 @@ body::before {
     position: relative;
     box-shadow: 0 6px 26px rgba(0,0,0,0.25);
 }
-/* 移除右上角关闭按钮样式，直接删掉该类 */
-/* 歌名大标题：下边距收紧 */
 .modal-song-title {
     font-size: 34px;
     font-weight: bold;
@@ -263,7 +439,6 @@ body::before {
     margin-bottom: 12px;
     line-height: 1.2;
 }
-/* 付费徽章嵌入歌名右侧 */
 .modal-title-badge {
     display: inline-block;
     margin-left: 8px;
@@ -275,14 +450,12 @@ body::before {
     font-weight: bold;
     vertical-align: middle;
 }
-/* 歌手文字缩小，字号大于标签 */
 .modal-singer-text {
     font-size: 17px;
     color: #e8d8ff;
     text-align: center;
     margin-bottom: 14px;
 }
-/* 标签容器整体缩小，间距微调 */
 .modal-tag-wrap {
     display: flex;
     gap: 8px;
@@ -293,40 +466,169 @@ body::before {
 .modal-tag-item {
     padding: 5px 14px;
     border: 1px solid rgba(255,255,255,0.4);
-    border-radius: 999px;
+    border-radius: 20px;
     color: #fff;
     font-size: 14px;
     background: rgba(255,255,255,0.1);
 }
-/* 底部按钮扩大间距、缩小按钮尺寸 */
+/* ========== 弹窗底部按钮 发光胶囊优化 ========== */
 .modal-btn-group {
     display: flex;
     gap: 30px;
 }
 .modal-action-btn {
     flex: 1;
-    padding: 10px 0;
-    border: none;
-    border-radius: 12px;
+    padding: 11px 0;
+    border: 1px solid rgba(255,255,0.8);
+    border-radius: 20px;
     font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.22s ease;
 }
 .btn-copy-song {
-    background: #4caf50;
+    background: linear-gradient(135deg, #16a34a, #4ade80);
     color: #fff;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.18),
+        0 0 12px rgba(74,222,128,0.45),
+        inset 0 0 8px rgba(255,255,255,0.12);
 }
 .btn-copy-song:hover {
-    background: #388e3c;
+    background: linear-gradient(135deg, #15803d, #16a34a);
+    transform: translateY(-2px) scale(1.03);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.32),
+        0 0 18px rgba(74,222,128,0.65),
+        inset 0 0 14px rgba(255,255,255,0.2);
 }
 .btn-re-random {
-    background: #ff80ab;
+    background: linear-gradient(135deg, #ec4899, #f472b6);
     color: #fff;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.18),
+        0 0 12px rgba(236,72,153,0.45),
+        inset 0 0 8px rgba(255,255,255,0.12);
 }
 .btn-re-random:hover {
-    background: #f50057;
+    background: linear-gradient(135deg, #db2777, #ec4899);
+    transform: translateY(-2px) scale(1.03);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.32),
+        0 0 18px rgba(236,72,153,0.65),
+        inset 0 0 14px rgba(255,255,255,0.2);
 }
-/* 移动端小屏适配 */
+.modal-action-btn:active {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.22),
+        0 0 8px rgba(0,0,0,0.2),
+        inset 0 0 4px rgba(0,0,0,0.1);
+}
+/* ========== 移动端768px以下专属筛选栏切换 ========== */
+@media (max-width: 768px) {
+    body {
+        background: url('./bgi-w-idol.jpg') no-repeat right center fixed;
+        background-size: cover;
+        background-position-x: 70%;
+    }
+    /* 头部改为垂直上下 */
+    .header {
+        width: 95%;
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+        padding: 16px 0 0 0;
+		margin-bottom: 10px;
+    }
+    .header-text-wrap {
+        align-items: center;
+        gap: 2px;
+    }
+    .avatar {
+        width: 140px;
+        height: 140px;
+    }
+    .header h1 { font-size: 22px; }
+    .header p { font-size: 16px; }
+
+    /* 隐藏PC一行筛选栏，显示分组三排筛选 */
+    .filter-bar {
+        display: none;
+    }
+    .filter-group-mobile {
+        display: block;
+    }
+    .filter-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    .user-link-bar { width: 95%; }
+    .search-bar { width: 95%; }
+    .shuffle-btn, .random-btn { padding: 10px 12px; font-size: 14px; }
+    
+    .list-container { width: 95%; max-height: 480px; }
+    
+    .song-list thead {
+        display: none;
+    }
+    .pc-row { display: none; }
+    .mobile-row { display: table-row; }
+    .mobile-row > td {
+        padding: 15px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .mobile-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        flex: 1;
+    }
+    .mobile-index {
+        color: #ff99cc;
+        font-weight: bold;
+        font-size: 14px;
+        min-width: 20px;
+        margin-top: 2px;
+    }
+    .mobile-title-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .mobile-title {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .mobile-singer {
+        font-size: 14px;
+        color: #ccc;
+    }
+    .mobile-category {
+        color: #e0c0ff;
+        font-size: 13px;
+        text-align: right;
+        min-width: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    .mobile-row:hover > td {
+        background: rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+    }
+    .top-right-btn {
+        top: 15px;
+        right: 15px;
+        font-size: 18px;
+        padding: 8px 20px;
+    }
+}
+/* 小屏手机480px适配 */
 @media (max-width: 480px) {
     .random-modal-box {
         padding: 18px 16px;
@@ -349,122 +651,41 @@ body::before {
         padding: 4px 10px;
     }
     .modal-action-btn {
-        padding: 8px 0;
+        padding: 9px 0;
         font-size: 14px;
     }
     .modal-title-badge {
         font-size: 11px;
         padding: 2px 5px;
     }
-}
-/* =========================================== */
-
-/* ===================== 移动端优雅适配 ===================== */
-@media (max-width: 768px) {
-    /* 移动端背景调整：显示右侧30%内容 */
-    body {
-        background: url('./bgi-w-idol.jpg') no-repeat right center fixed;
-        background-size: cover;
-        /* 关键：将背景定位到右侧，只展示右边30% */
-        background-position-x: 70%;
-    }
-    .header { padding: 20px 0; }
-    .avatar { width: 160px; height: 160px; }
-    .header h1 { font-size: 22px; }
-    .header p { font-size: 16px; }
-    
-    .filter-bar { width: 95%; }
-    .filter-btn { padding: 10px 20px; font-size: 14px; }
-    
-    .search-bar { width: 95%; }
-    .shuffle-btn, .random-btn { padding: 10px 12px; font-size: 14px; }
-    
-    .list-container { width: 95%; max-height: 480px; }
-    
-    /* 移动端表格样式重置 */
-    .song-list thead {
-        display: none;
-    }
-    /* 隐藏PC端行，显示移动端行 */
-    .pc-row {
-        display: none;
-    }
-    .mobile-row {
-        display: table-row;
-    }
-    .mobile-row > td {
-        padding: 15px 10px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    /* 移动端左侧内容（序号+标题+歌手） */
-    .mobile-left {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        flex: 1;
-    }
-    /* 移动端序号 */
-    .mobile-index {
-        color: #ff99cc;
-        font-weight: bold;
-        font-size: 14px;
-        min-width: 20px;
-        margin-top: 2px;
-    }
-    /* 移动端标题歌手容器 */
-    .mobile-title-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    /* 移动端歌名和歌手 */
-    .mobile-title {
-        font-size: 16px;
-        font-weight: bold;
-    }
-    .mobile-singer {
-        font-size: 14px;
-        color: #ccc;
-    }
-    /* 移动端右侧类别 */
-    .mobile-category {
-        color: #e0c0ff;
-        font-size: 13px;
-        text-align: right;
-        min-width: 80px;
-        /* 确保类别垂直居中 */
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-    }
-    /* 移动端行hover效果 */
-    .mobile-row:hover > td {
-        background: rgba(255, 255, 255, 0.1);
-        cursor: pointer;
-    }
-    /* 移动端右上角按钮适配 */
+    .user-link-btn {
+		padding: 10px 20px;
+		font-size: 15px;
+	}
+	.user-link-btn .btn-icon {
+		width: 16px;
+		height: 16px;
+	}
     .top-right-btn {
-        top: 15px;
-        right: 15px;
-        font-size: 18px;
-        padding: 8px 14px;
+        font-size: 16px;
+        padding: 8px 18px;
     }
-}
-/* 小屏手机：强制搜索栏不换行，完美一行显示 */
-@media (max-width: 480px) {
+    .filter-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    .shuffle-btn, .random-btn {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
     .search-bar { flex-wrap: nowrap; }
     .shuffle-btn, .random-btn { padding: 8px 10px; font-size: 12px; }
     .search-input { font-size: 14px; padding: 8px 10px; }
     
-    /* 小屏手机背景调整 */
     body {
         background-position-x: 80%;
     }
     
-    /* 小屏手机文字大小优化 */
     .mobile-title {
         font-size: 15px;
     }
@@ -475,15 +696,13 @@ body::before {
         font-size: 12px;
         min-width: 70px;
     }
-    /* 小屏手机右上角按钮进一步适配 */
     .top-right-btn {
         top: 10px;
         right: 10px;
         font-size: 16px;
-        padding: 6px 12px;
+        padding: 6px 16px;
     }
 }
-/* ======================================================================== */
 /* 付费标识小徽章 */
 .badge-sc {
   display: inline-block;
@@ -503,36 +722,57 @@ body::before {
 <!-- 新版随机歌曲弹窗DOM（移除关闭按钮） -->
 <div class="random-modal-mask" id="randomModal">
     <div class="random-modal-box">
-        <!-- 歌名标题 -->
         <div class="modal-song-title" id="modalSongTitle"></div>
-        <!-- 歌手 -->
         <div class="modal-singer-text" id="modalSingerText"></div>
-        <!-- 语言+曲风+风格 三个标签 -->
         <div class="modal-tag-wrap" id="tagsContainer">
             <span class="modal-tag-item" id="tagLang"></span>
             <span class="modal-tag-item" id="tagGenre"></span>
             <span class="modal-tag-item" id="tagStyle"></span>
         </div>
-        <!-- 底部两个按钮 -->
         <div class="modal-btn-group">
             <button class="modal-action-btn btn-copy-song" id="modalCopyBtn">复制歌名</button>
             <button class="modal-action-btn btn-re-random" id="modalReRandomBtn">重新随机</button>
         </div>
     </div>
 </div>
-
 <!-- 右上角按钮 -->
 <button class="top-right-btn" onclick="window.open('https://qiyuanyuan.feishu.cn/wiki/ABozwohdai54eWkUhVfc49nLnCe?table=tblAyMnUJgpuWVqp&view=vewXxBNTOK','_blank')">前往路灯</button>
 <!-- 气泡容器 -->
 <div id="toast-container"></div>
-<!-- 头部 -->
+
+<!-- PC左右并排、文字居中；移动端自动上下 -->
 <div class="header">
-    <img src="./e22a6dd351d3eb09e7f238e264fd06a2303246676.jpg@560w_560h_1e_1c.avif" alt="头像" class="avatar">
-    <h1>栖苑太困辽 与她的</h1>
-    <p id="song-count">0 首歌</p>
-    <div class="update-info">last update: 2026-06-22</div>
+    <div class="header-avatar-wrap">
+        <a href="https://space.bilibili.com/303246676" target="_blank" class="avatar-link">
+            <img src="./e22a6dd351d3eb09e7f238e264fd06a2303246676.jpg@560w_560h_1e_1c.avif" alt="头像" class="avatar">
+        </a>
+    </div>
+    <div class="header-text-wrap">
+        <h1>栖苑太困辽 与她的</h1>
+        <p id="song-count">0 首歌</p>
+        <div class="update-info">last update: 2026-06-22</div>
+    </div>
 </div>
-<!-- 筛选 -->
+
+<!-- B站按钮栏 -->
+<div class="user-link-bar">
+    <a class="user-link-btn" href="https://space.bilibili.com/303246676" target="_blank">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        个人空间
+    </a>
+    <a class="user-link-btn live" href="https://live.bilibili.com/10049827" target="_blank">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2"></rect>
+        </svg>
+        直播间
+    </a>
+</div>
+
+<!-- PC端一行筛选（大屏显示） -->
 <div class="filter-bar">
     <button class="filter-btn active" data-type="lang" data-val="all">全部语言</button>
     <button class="filter-btn" data-type="lang" data-val="中文">中文</button>
@@ -545,6 +785,36 @@ body::before {
     <button class="filter-btn" data-type="qufeng" data-val="流行">流行</button>
     <button class="filter-btn" data-type="qufeng" data-val="国风">国风</button>
 </div>
+
+<!-- 移动端三组分栏（平板/手机显示） -->
+<div class="filter-group-mobile">
+    <!-- 第一组：语言 -->
+    <div class="filter-group">
+        <div class="filter-group-buttons">
+            <button class="filter-btn active" data-type="lang" data-val="all">全部语言</button>
+            <button class="filter-btn" data-type="lang" data-val="中文">中文</button>
+            <button class="filter-btn" data-type="lang" data-val="日文">日文</button>
+            <button class="filter-btn" data-type="lang" data-val="英文">英文</button>
+        </div>
+    </div>
+    <!-- 第二组：风格 -->
+    <div class="filter-group">
+        <div class="filter-group-buttons">
+            <button class="filter-btn active" data-type="style" data-val="all">全部风格</button>
+            <button class="filter-btn" data-type="style" data-val="甜歌">甜歌</button>
+            <button class="filter-btn" data-type="style" data-val="苦情">苦情</button>
+        </div>
+    </div>
+    <!-- 第三组：曲风 -->
+    <div class="filter-group">
+        <div class="filter-group-buttons">
+            <button class="filter-btn active" data-type="qufeng" data-val="all">全部曲风</button>
+            <button class="filter-btn" data-type="qufeng" data-val="流行">流行</button>
+            <button class="filter-btn" data-type="qufeng" data-val="国风">国风</button>
+        </div>
+    </div>
+</div>
+
 <!-- 搜索 -->
 <div class="search-bar">
     <button class="shuffle-btn">打乱顺序</button>
@@ -555,7 +825,6 @@ body::before {
 <div class="list-container">
     <table class="song-list">
         <thead>
-            <!-- PC端表头：序号-歌名-歌手-类别 -->
             <tr><th>#</th><th>歌名</th><th>歌手</th><th>类别</th></tr>
         </thead>
         <tbody id="list"></tbody>
@@ -594,6 +863,7 @@ function setRandomBg() {
 setRandomBg();
 // 窗口缩放自动重算位置
 window.addEventListener('resize', setRandomBg);
+
 let allSongs = [];
 let filtered = [];
 let page = 1;
@@ -640,7 +910,7 @@ function render() {
   const html = list.map((item, i) => {
     const index = page * size - size + i + 1;
     const category = `${item.lang}·${item.genre}${item.style ? '/' + item.style : ''}`;
-    // 判断是否展示徽章
+     // 判断是否展示徽章
     const showBadge = paidSongList.includes(item.title) || (item.sc && item.sc.trim() !== '');
     // sc兜底30：空/空白则用30
     const scVal = item.sc?.trim() || "30";
@@ -730,12 +1000,12 @@ function refreshRandomSong() {
     }else{
         tagStyle.style.display = 'none';
     }
+    randomModal.classList.add('show');
 }
 
 // 打开弹窗
 function openRandomModal(){
     refreshRandomSong();
-    randomModal.classList.add('show');
 }
 
 // 复制歌名
