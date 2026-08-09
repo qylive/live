@@ -980,7 +980,7 @@ function render() {
 // 点击整行复制
 function copyThis(index) {
     const item = filtered[index];
-    const text = `点歌 ${item.title} ${item.singer}`;
+    const text = `点歌 ${item.title}`;
     navigator.clipboard.writeText(text).then(() => {
         showToast(`已复制：${text}`);
     }).catch(() => {
@@ -1043,7 +1043,7 @@ function openRandomModal(){
 // 复制歌名
 function copyModalSong(){
     if(!currentRandomSong) return;
-    const copyText = `点歌 ${currentRandomSong.title} - ${currentRandomSong.singer}`;
+    const copyText = `点歌 ${currentRandomSong.title}`;
     navigator.clipboard.writeText(copyText).then(()=>{
         showToast(`已复制：${copyText}`);
     }).catch(()=>{
