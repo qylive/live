@@ -277,7 +277,7 @@ fileInput.onchange = async (e) => {
                 return;
             }
             let genre = '', style = '';
-            if (typeRaw.includes('；') {
+            if (typeRaw.includes('；')) {
                 const arr = typeRaw.split('；');
                 genre = arr[0].trim();
                 style = arr[1]?.trim() || '';
