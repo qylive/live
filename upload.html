@@ -239,7 +239,7 @@ async function updateSingleFile(token, filePath, newContent, commitMsg) {
 // 选择文件
 uploadBtn.onclick = () => fileInput.click();
 
-// 解析Excel（模板固定：歌名 | 歌手 | 类型(曲风[;风格]) | 语言 | SC）
+// 解析Excel（模板固定：歌名 | 歌手 | 类型(曲风[;风格]) | 语言 | SC [| 风格可选]）
 fileInput.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -286,16 +286,23 @@ fileInput.onchange = async (e) => {
                 return;
             }
             let genre = '', style = '';
+            // 第六列(可选风格列)有值时优先作为style
+            const styleRaw = r[5]?.toString().trim() || '';
+            // 类型列取曲风部分（含分号时取第一部分）
             if (typeRaw.includes('；')) {
-                const arr = typeRaw.split('；');
-                genre = arr[0].trim();
-                style = arr[1]?.trim() || '';
+                genre = typeRaw.split('；')[0].trim();
             } else if (typeRaw.includes(';')) {
-                const arr = typeRaw.split(';');
-                genre = arr[0].trim();
-                style = arr[1]?.trim() || '';
+                genre = typeRaw.split(';')[0].trim();
             } else {
                 genre = typeRaw;
+            }
+            // 风格：第六列优先，否则从类型列分号后取
+            if (styleRaw) {
+                style = styleRaw;
+            } else if (typeRaw.includes('；')) {
+                style = typeRaw.split('；')[1]?.trim() || '';
+            } else if (typeRaw.includes(';')) {
+                style = typeRaw.split(';')[1]?.trim() || '';
             }
             list.push({
                 genre,
