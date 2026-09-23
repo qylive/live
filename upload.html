@@ -62,6 +62,11 @@
         color: white;
         margin-right: 12px;
     }
+    .btn-import {
+        background: #e6a23c;
+        color: white;
+        margin-right: 12px;
+    }
     .btn-push {
         background: #67c23a;
         color: white;
@@ -70,6 +75,43 @@
         background: #c0c4cc;
         cursor: not-allowed;
         opacity: 0.7;
+    }
+    /* 导入方式二选一 switch */
+    .mode-switch {
+        display: flex;
+        margin-bottom: 20px;
+        border: 1px solid #dcdfe6;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .mode-btn {
+        flex: 1;
+        padding: 11px 0;
+        border: none;
+        background: #f5f7fa;
+        color: #666;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    .mode-btn + .mode-btn {
+        border-left: 1px solid #dcdfe6;
+    }
+    .mode-btn.active {
+        background: #409eff;
+        color: #fff;
+    }
+    #jsonInput {
+        width: 100%;
+        height: 220px;
+        border: 1px solid #dcdfe6;
+        border-radius: 6px;
+        padding: 12px;
+        resize: vertical;
+        background: #fafafa;
+        font-family: monospace;
+        font-size: 13px;
+        line-height: 1.6;
     }
     #jsonBox {
         width: 100%;
@@ -134,8 +176,8 @@
         <div class="step-desc">
             操作步骤：<br>
             1. 填入你的个人密钥<br>
-            2. 点击按钮选择Excel歌曲表格<br>
-            3. 表格会自动转换成预览数据<br>
+            2. 选择导入方式（Excel表格 或 粘贴JSON，二选一）<br>
+            3. 数据会自动转换成预览<br>
             4. 确认内容无误，点击提交同步线上歌单与更新日期
         </div>
         <div class="item-box">
@@ -143,14 +185,27 @@
             <input type="password" id="githubToken" placeholder="粘贴你的密钥">
             <div class="tip">密钥需要拥有修改这个歌单网站的权限，仅自己使用，不要发给别人</div>
         </div>
-        <div class="btn-group">
-            <button class="btn btn-upload" id="uploadBtn">选择Excel</button>
-            <button class="btn btn-push" id="pushBtn" disabled>推送更新</button>
+        <div class="mode-switch">
+            <button class="mode-btn active" id="modeExcel">Excel上传</button>
+            <button class="mode-btn" id="modeJson">粘贴JSON</button>
+        </div>
+        <div class="btn-group" id="excelArea">
+            <button class="btn btn-upload" id="uploadBtn">选择Excel文件</button>
             <input type="file" id="fileInput" style="display: none;" accept=".xlsx,.xls">
+        </div>
+        <div class="item-box" id="jsonArea" style="display: none;">
+            <label>粘贴 JSON 歌单数据（歌曲对象数组）</label>
+            <textarea id="jsonInput" placeholder='格式示例：[{"title":"歌名","singer":"歌手","genre":"流行","style":"甜歌","lang":"中文","sc":"30"}]'></textarea>
+            <div class="btn-group">
+                <button class="btn btn-import" id="importJsonBtn">导入JSON</button>
+            </div>
         </div>
         <div class="item-box">
             <label>转换结果预览（长内容可上下滑动）</label>
-            <textarea id="jsonBox" readonly placeholder="导入表格后，数据会显示在这里"></textarea>
+            <textarea id="jsonBox" readonly placeholder="导入表格或JSON后，数据会显示在这里"></textarea>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-push" id="pushBtn" disabled>推送更新</button>
         </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -168,6 +223,27 @@ const fileInput = document.getElementById('fileInput');
 const jsonBox = document.getElementById('jsonBox');
 const pushBtn = document.getElementById('pushBtn');
 const githubToken = document.getElementById('githubToken');
+const modeExcel = document.getElementById('modeExcel');
+const modeJson = document.getElementById('modeJson');
+const excelArea = document.getElementById('excelArea');
+const jsonArea = document.getElementById('jsonArea');
+const jsonInput = document.getElementById('jsonInput');
+const importJsonBtn = document.getElementById('importJsonBtn');
+
+// 导入方式二选一：切换时清空待推送状态，避免误推送
+function switchMode(mode) {
+    const isExcel = mode === 'excel';
+    modeExcel.classList.toggle('active', isExcel);
+    modeJson.classList.toggle('active', !isExcel);
+    excelArea.style.display = isExcel ? 'block' : 'none';
+    jsonArea.style.display = isExcel ? 'none' : 'block';
+    pendingList = null;
+    jsonBox.value = '';
+    pushBtn.disabled = true;
+    if (!isExcel) jsonInput.focus();
+}
+modeExcel.onclick = () => switchMode('excel');
+modeJson.onclick = () => switchMode('json');
 
 // 弹窗提示
 function showToast(msg, type = 'default') {
@@ -238,6 +314,38 @@ async function updateSingleFile(token, filePath, newContent, commitMsg) {
 
 // 选择文件
 uploadBtn.onclick = () => fileInput.click();
+
+// 导入粘贴的JSON：校验并生成待推送列表
+importJsonBtn.onclick = () => {
+    const text = jsonInput.value.trim();
+    if (!text) return showToast('请先粘贴 JSON 数据', 'error');
+    let raw;
+    try {
+        raw = JSON.parse(text);
+        if (!Array.isArray(raw)) throw new Error('必须是歌曲对象数组');
+        if (raw.length === 0) throw new Error('数组为空，没有歌曲数据');
+        raw.forEach((s, i) => {
+            if (!s || typeof s !== 'object') throw new Error(`第${i+1}项不是对象`);
+            if (!s.title || !s.singer) throw new Error(`第${i+1}项缺少 title 或 singer`);
+        });
+    } catch (err) {
+        showToast('JSON 导入失败：' + err.message, 'error');
+        return;
+    }
+    // 规范化字段：补齐缺省值，sc 统一为字符串（与 songs.json 格式一致）
+    pendingList = raw.map(s => ({
+        genre: s.genre || '',
+        lang: s.lang || '',
+        singer: s.singer,
+        style: s.style || '',
+        sc: s.sc != null ? String(s.sc) : '',
+        title: s.title
+    }));
+    jsonBox.value = JSON.stringify(pendingList, null, 2);
+    pushBtn.disabled = false;
+    jsonInput.value = '';
+    showToast(`JSON 导入成功，共 ${pendingList.length} 首，可以推送`, 'success');
+};
 
 // 解析Excel（模板固定：歌名 | 歌手 | 类型(曲风[;风格]) | 语言 | SC [| 风格可选]）
 fileInput.onchange = async (e) => {
@@ -330,7 +438,7 @@ pushBtn.onclick = async () => {
     const token = githubToken.value.trim();
     const today = getTodayDate();
     if (!token) return showToast('请填写密钥', 'error');
-    if (!pendingList) return showToast('请先导入表格', 'error');
+    if (!pendingList) return showToast('请先导入表格或JSON', 'error');
     pushBtn.disabled = true;
     try {
         showToast('正在读取线上歌单，合并付费(SC)标记...');
