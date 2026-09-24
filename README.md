@@ -32,8 +32,9 @@
 - 通过 Cloudflare Pages Functions 同源代理（/api/live-status）规避浏览器跨域限制
 
 ### 欢迎动画
-- 进入页面时全屏暗色遮罩，渐变显示「欢迎来到栖苑太困辽歌单」，文字周围带音符漂浮与光点闪烁
-- 约 1.8 秒后整体渐隐消失并移除遮罩，不遮挡页面操作
+- 进入页面时全屏暗色遮罩，居中显示「苑小苑」表情包，弹性弹入后持续心跳脉动
+- 下方渐变显示「欢迎来到苑小苑的歌单」，周围带 CSS 爱心与光点装饰
+- 约 1.8 秒后整体淡出消失并移除遮罩，不遮挡页面操作
 - 尊重系统「减少动态效果」设置
 
 ### 歌单管理（upload.html）
@@ -57,6 +58,7 @@ live/
 │       └── live-status.js # Cloudflare Pages Functions 直播状态代理
 ├── lib/
 │   └── xlsx.full.min.js # Excel 解析库（本地化，不依赖 CDN）
+├── welcome-emoji.jpg    # 欢迎动画表情包
 ├── bgi-w-idol.webp     # 背景图 1
 ├── bgi-w-witch.webp    # 背景图 2
 ├── e22a6dd3...avif     # 头像图片

@@ -282,7 +282,10 @@ loadSongJson();
 // ===== 欢迎动画：遮罩播放完毕后移除，避免遮挡页面交互 =====
 const welcomeOverlay = document.getElementById('welcome-overlay');
 if (welcomeOverlay) {
-    welcomeOverlay.addEventListener('animationend', () => welcomeOverlay.remove());
+    // 只响应遮罩自身动画结束（子元素动画的 animationend 会冒泡，需过滤，否则会提前移除遮罩）
+    welcomeOverlay.addEventListener('animationend', (e) => {
+        if (e.target === welcomeOverlay) welcomeOverlay.remove();
+    });
 }
 
 // ===== B站直播间开播状态检测（仅进入页面时查询一次，不轮询） =====

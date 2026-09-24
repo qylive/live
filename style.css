@@ -50,7 +50,7 @@ body::after {
     background: rgba(120, 80, 200, 0.6);
     z-index: -1;
 }
-/* ========== 欢迎动画遮罩（页面载入自动播放约1.8s后渐隐消失） ========== */
+/* ========== 欢迎动画遮罩（页面载入自动播放约1.8s后淡出消失） ========== */
 #welcome-overlay {
     position: fixed;
     inset: 0;
@@ -65,6 +65,20 @@ body::after {
     position: relative;
     text-align: center;
 }
+/* 欢迎表情包：弹性弹入后持续心跳脉动 */
+.welcome-emoji {
+    display: block;
+    width: clamp(150px, 22vw, 240px);
+    margin: 0 auto;
+    border-radius: 26px;
+    box-shadow:
+        0 0 0 4px rgba(255,255,255,0.9),
+        0 0 34px rgba(236,72,153,0.85),
+        0 0 80px rgba(139,92,246,0.55);
+    opacity: 0;
+    animation: emojiPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both,
+               heartbeat 1.15s ease-in-out 0.62s infinite;
+}
 .welcome-text {
     font-size: clamp(26px, 4.5vw, 42px);
     font-weight: 700;
@@ -74,21 +88,46 @@ body::after {
         0 0 14px rgba(236,72,153,0.85),
         0 0 42px rgba(139,92,246,0.65),
         0 2px 6px rgba(0,0,0,0.5);
+    margin-top: 30px;
     opacity: 0;
-    animation: welcomeTextIn 0.7s ease forwards;
+    animation: welcomeTextIn 0.7s ease 0.48s both;
 }
-/* 音符漂浮（文字周围） */
-.welcome-note {
+/* 爱心装饰（表情包周围，CSS绘制） */
+.heart-deco {
     position: absolute;
-    font-size: 26px;
-    color: rgba(255,214,240,0.85);
+    width: 30px;
+    height: 30px;
     opacity: 0;
-    animation: noteFloat 1.6s ease-in-out infinite;
+    animation: heartTwinkle 1.4s ease-in-out infinite;
 }
-.welcome-note.n1 { top: -42px; left: -118px; animation-delay: 0.1s; }
-.welcome-note.n2 { top: -62px; right: -108px; font-size: 20px; animation-delay: 0.35s; }
-.welcome-note.n3 { bottom: -34px; left: -84px; font-size: 18px; animation-delay: 0.6s; }
-/* 光点闪烁（文字周围） */
+.heart-deco i {
+    position: absolute;
+    inset: 0;
+    background: #ff7ba6;
+    transform: rotate(45deg);
+    box-shadow: 0 0 12px rgba(255,123,166,0.9);
+}
+.heart-deco i::before,
+.heart-deco i::after {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ff7ba6;
+}
+.heart-deco i::before { top: -15px; left: 0; }
+.heart-deco i::after  { left: -15px; top: 0; }
+.heart-deco.h1 { top: -30px; left: -148px; animation-delay: 0.45s; }
+.heart-deco.h2 { top: 24px; right: -118px; width: 22px; height: 22px; animation-delay: 0.7s; }
+.heart-deco.h2 i, .heart-deco.h2 i::before, .heart-deco.h2 i::after { width: 22px; height: 22px; }
+.heart-deco.h2 i::before { top: -11px; }
+.heart-deco.h2 i::after  { left: -11px; }
+.heart-deco.h3 { bottom: -44px; left: -64px; width: 20px; height: 20px; animation-delay: 0.95s; }
+.heart-deco.h3 i, .heart-deco.h3 i::before, .heart-deco.h3 i::after { width: 20px; height: 20px; }
+.heart-deco.h3 i::before { top: -10px; }
+.heart-deco.h3 i::after  { left: -10px; }
+/* 光点闪烁（表情包与文字周围） */
 .welcome-spark {
     position: absolute;
     width: 6px;
@@ -99,25 +138,35 @@ body::after {
     opacity: 0;
     animation: sparkTwinkle 1.5s ease-in-out infinite;
 }
-.welcome-spark.s1 { top: -72px; left: -46px; animation-delay: 0s; }
-.welcome-spark.s2 { top: 34px; right: -78px; animation-delay: 0.3s; }
-.welcome-spark.s3 { bottom: -64px; right: -34px; animation-delay: 0.55s; }
-.welcome-spark.s4 { top: -96px; right: 26px; width: 4px; height: 4px; animation-delay: 0.8s; }
-.welcome-spark.s5 { bottom: -44px; left: 58px; width: 5px; height: 5px; animation-delay: 0.45s; }
+.welcome-spark.s1 { top: -96px; left: -46px; animation-delay: 0s; }
+.welcome-spark.s2 { top: 34px; right: -96px; animation-delay: 0.3s; }
+.welcome-spark.s3 { bottom: -88px; right: -34px; animation-delay: 0.55s; }
+.welcome-spark.s4 { top: -120px; right: 26px; width: 4px; height: 4px; animation-delay: 0.8s; }
+.welcome-spark.s5 { bottom: -66px; left: 58px; width: 5px; height: 5px; animation-delay: 0.45s; }
 @keyframes welcomeFade {
     0%   { opacity: 0; }
     12%  { opacity: 1; }
     85%  { opacity: 1; }
     100% { opacity: 0; }
 }
+/* 表情包弹性弹入 */
+@keyframes emojiPop {
+    0%   { opacity: 0; transform: scale(0.4); }
+    60%  { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+/* 心跳脉动 */
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+}
 @keyframes welcomeTextIn {
     0%   { opacity: 0; transform: translateY(16px) scale(0.96); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes noteFloat {
-    0%   { opacity: 0; transform: translateY(10px) rotate(-8deg); }
-    30%  { opacity: 0.9; }
-    100% { opacity: 0; transform: translateY(-36px) rotate(12deg); }
+@keyframes heartTwinkle {
+    0%, 100% { opacity: 0; }
+    50%      { opacity: 1; }
 }
 @keyframes sparkTwinkle {
     0%, 100% { opacity: 0; transform: scale(0.6); }
