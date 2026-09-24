@@ -278,3 +278,34 @@ document.querySelector('.list-container').onscroll = function () {
 };
 // 初始化加载歌单数据
 loadSongJson();
+
+// ===== 欢迎动画：遮罩播放完毕后移除，避免遮挡页面交互 =====
+const welcomeOverlay = document.getElementById('welcome-overlay');
+if (welcomeOverlay) {
+    welcomeOverlay.addEventListener('animationend', () => welcomeOverlay.remove());
+}
+
+// ===== B站直播间开播状态检测（仅进入页面时查询一次，不轮询） =====
+const LIVE_ROOM_ID = 10049827;
+async function checkLiveStatus() {
+    const avatarLink = document.querySelector('.avatar-link');
+    if (!avatarLink) return;
+    // 仅当接口返回 2xx 且明确解析出 live_status===1（直播中）时才展示律动动画；
+    // 403/404/网络失败/轮播(2)/未开播(0) 等一切非开播信号均保持原样
+    const tryFetch = async (url) => {
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) return; // 非2xx视为检测失败，不做任何变更
+            const data = await resp.json();
+            // 兼容本站代理 {live_status} 与 B站原始 {data:{live_status}} 两种返回结构
+            const raw = data && data.data ? data.data.live_status : data && data.live_status;
+            if (raw === 1 || raw === '1') avatarLink.classList.add('live');
+        } catch (e) { /* 查询异常保持原样 */ }
+    };
+    // 线上走本站 Cloudflare Pages Functions 代理（同源）；代理不可用（本地预览）时回退直连 B站接口
+    await tryFetch('./api/live-status');
+    if (!avatarLink.classList.contains('live')) {
+        await tryFetch(`https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${LIVE_ROOM_ID}`);
+    }
+}
+checkLiveStatus();

@@ -5,9 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>栖苑歌单</title>
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="./style.css?v=1">
+<link rel="stylesheet" href="./style.css?v=4">
 </head>
 <body>
+<!-- 欢迎动画遮罩：进入页面时渐变显示欢迎语，约1.8秒后自动消失 -->
+<div id="welcome-overlay">
+    <div class="welcome-content">
+        <span class="welcome-note n1">♪</span>
+        <span class="welcome-note n2">♫</span>
+        <span class="welcome-note n3">♪</span>
+        <span class="welcome-spark s1"></span>
+        <span class="welcome-spark s2"></span>
+        <span class="welcome-spark s3"></span>
+        <span class="welcome-spark s4"></span>
+        <span class="welcome-spark s5"></span>
+        <p class="welcome-text">欢迎来到栖苑太困辽歌单</p>
+    </div>
+</div>
 <!-- 随机歌曲弹窗 -->
 <div class="random-modal-mask" id="randomModal">
     <div class="random-modal-box">
@@ -24,8 +38,6 @@
         </div>
     </div>
 </div>
-<!-- 右上角按钮 -->
-<button class="top-right-btn" onclick="window.open('https://qiyuanyuan.feishu.cn/wiki/ABozwohdai54eWkUhVfc49nLnCe?table=tblAyMnUJgpuWVqp&view=vewXxBNTOK','_blank')">前往路灯</button>
 <!-- 气泡容器 -->
 <div id="toast-container"></div>
 
@@ -41,6 +53,7 @@
         <p id="song-count">0 首歌</p>
         <div class="update-info">last update: 2026-09-22</div>
     </div>
+    <button class="top-right-btn" onclick="window.open('https://qiyuanyuan.feishu.cn/wiki/ABozwohdai54eWkUhVfc49nLnCe?table=tblAyMnUJgpuWVqp&view=vewXxBNTOK','_blank')">前往路灯</button>
 </div>
 
 <!-- B站按钮栏 -->
@@ -114,6 +127,6 @@
  <div class="list-container">
     <div class="song-list-wrap" id="list"></div>
 </div>
-<script src="./app.js?v=1"></script>
+<script src="./app.js?v=4"></script>
 </body>
 </html>

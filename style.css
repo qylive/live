@@ -50,12 +50,90 @@ body::after {
     background: rgba(120, 80, 200, 0.6);
     z-index: -1;
 }
-/* ========== 右上角按钮 现代化胶囊发光优化 ========== */
-.top-right-btn {
+/* ========== 欢迎动画遮罩（页面载入自动播放约1.8s后渐隐消失） ========== */
+#welcome-overlay {
     position: fixed;
-    top: calc(25px + env(safe-area-inset-top)); 
-    right: 15%; 
-    z-index: 998;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, rgba(40,20,80,0.92), rgba(10,5,30,0.97));
+    animation: welcomeFade 1.8s ease forwards;
+}
+.welcome-content {
+    position: relative;
+    text-align: center;
+}
+.welcome-text {
+    font-size: clamp(26px, 4.5vw, 42px);
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #ffd6f0;
+    text-shadow:
+        0 0 14px rgba(236,72,153,0.85),
+        0 0 42px rgba(139,92,246,0.65),
+        0 2px 6px rgba(0,0,0,0.5);
+    opacity: 0;
+    animation: welcomeTextIn 0.7s ease forwards;
+}
+/* 音符漂浮（文字周围） */
+.welcome-note {
+    position: absolute;
+    font-size: 26px;
+    color: rgba(255,214,240,0.85);
+    opacity: 0;
+    animation: noteFloat 1.6s ease-in-out infinite;
+}
+.welcome-note.n1 { top: -42px; left: -118px; animation-delay: 0.1s; }
+.welcome-note.n2 { top: -62px; right: -108px; font-size: 20px; animation-delay: 0.35s; }
+.welcome-note.n3 { bottom: -34px; left: -84px; font-size: 18px; animation-delay: 0.6s; }
+/* 光点闪烁（文字周围） */
+.welcome-spark {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff99cc;
+    box-shadow: 0 0 10px #ff99cc, 0 0 22px #ec4899;
+    opacity: 0;
+    animation: sparkTwinkle 1.5s ease-in-out infinite;
+}
+.welcome-spark.s1 { top: -72px; left: -46px; animation-delay: 0s; }
+.welcome-spark.s2 { top: 34px; right: -78px; animation-delay: 0.3s; }
+.welcome-spark.s3 { bottom: -64px; right: -34px; animation-delay: 0.55s; }
+.welcome-spark.s4 { top: -96px; right: 26px; width: 4px; height: 4px; animation-delay: 0.8s; }
+.welcome-spark.s5 { bottom: -44px; left: 58px; width: 5px; height: 5px; animation-delay: 0.45s; }
+@keyframes welcomeFade {
+    0%   { opacity: 0; }
+    12%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+@keyframes welcomeTextIn {
+    0%   { opacity: 0; transform: translateY(16px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes noteFloat {
+    0%   { opacity: 0; transform: translateY(10px) rotate(-8deg); }
+    30%  { opacity: 0.9; }
+    100% { opacity: 0; transform: translateY(-36px) rotate(12deg); }
+}
+@keyframes sparkTwinkle {
+    0%, 100% { opacity: 0; transform: scale(0.6); }
+    50%      { opacity: 1; transform: scale(1.25); }
+}
+/* 用户偏好减少动态效果时直接隐藏欢迎遮罩 */
+@media (prefers-reduced-motion: reduce) {
+    #welcome-overlay { display: none; }
+}
+
+/* ========== 前往路灯按钮（absolute于header右上角，顶部与头像顶部齐平略高，随页面滚动不遮挡） ========== */
+.top-right-btn {
+    position: absolute;
+    /* PC头像顶部距header顶部40px(padding-top)，按钮再上移8px使其略高于头像顶边 */
+    top: 32px;
+    right: 0;
     padding: 10px 24px;
     border: 1px solid rgba(255,255,0.8);
     background: linear-gradient(135deg, #db2777, #ec4899);
@@ -181,6 +259,7 @@ body::after {
 }
 /* ========== 头部布局【PC专用配置】 ========== */
 .header {
+    position: relative;
     width: 70%;
     margin: 0 auto 20px;
     padding: 40px 0 15px 0; /* 上40px 下15px */
@@ -202,6 +281,7 @@ body::after {
 }
 /* 头像恢复256px原始尺寸 */
 .avatar-link {
+    position: relative;
     display: inline-block;
     text-decoration: none;
 }
@@ -214,6 +294,31 @@ body::after {
 }
 .avatar-link:hover .avatar {
     transform: scale(1.05);
+}
+/* ========== B站开播中：头像周围音乐律动动画 ========== */
+/* 两圈粉色光环交替扩散；默认完全隐藏（animation:none 使 opacity:0 生效），仅 .live 时应用动画 */
+/* 注意：不能用 animation-play-state:paused 控制显隐——Chrome 下 paused 会停在 0% 帧导致光环常显 */
+.avatar-link::before,
+.avatar-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 4px solid rgba(244, 114, 182, 0.9);
+    box-shadow: 0 0 14px rgba(236, 72, 153, 0.55), inset 0 0 14px rgba(236, 72, 153, 0.35);
+    pointer-events: none;
+    opacity: 0;
+    animation: none;
+}
+.avatar-link.live::before {
+    animation: livePulse 1.8s ease-out infinite;
+}
+.avatar-link.live::after {
+    animation: livePulse 1.8s ease-out 0.9s infinite;
+}
+@keyframes livePulse {
+    0%   { transform: scale(1.06); opacity: 0.9; }
+    100% { transform: scale(1.36); opacity: 0; }
 }
 .header h1 {
     font-size: 28px;
@@ -254,6 +359,16 @@ body::after {
     gap: 10px;
     justify-content: flex-start; /* 左对齐 */
 }
+/* ========== 筛选栏三行切换断点：<1700px 时切换为三行（≥1025px 仍保持PC布局，仅筛选栏换行） ========== */
+@media (min-width: 1025px) and (max-width: 1699px) {
+    .filter-bar { display: none; }
+    .filter-group-mobile {
+        display: block;
+        width: fit-content;
+        margin: 0 auto 20px;
+    }
+}
+
 .filter-btn {
     padding: 14px 32px;
     border: 1px solid rgba(255,255,255,0.75);
@@ -646,10 +761,14 @@ body::after {
         min-width: 80px;
     }
     .top-right-btn {
-        top: calc(15px + env(safe-area-inset-top));
-        right: 15px;
+        top: calc(10px + env(safe-area-inset-top));
+        right: 8px;
+        transform: none;
         font-size: 18px;
         padding: 8px 20px;
+    }
+    .top-right-btn:hover, .top-right-btn:active {
+        transform: none;
     }
 }
 /* 小屏手机480px适配 */
@@ -712,12 +831,6 @@ body::after {
     .mobile-category {
         font-size: 12px;
         min-width: 70px;
-    }
-    .top-right-btn {
-        top: calc(10px + env(safe-area-inset-top));
-        right: 10px;
-        font-size: 16px;
-        padding: 6px 16px;
     }
 }
 /* 付费标识小徽章 */
