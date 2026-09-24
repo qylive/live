@@ -59,25 +59,40 @@ body::after {
     align-items: center;
     justify-content: center;
     background: radial-gradient(ellipse at center, rgba(40,20,80,0.92), rgba(10,5,30,0.97));
-    animation: welcomeFade 1.8s ease forwards;
+    animation: welcomeFade 2.5s ease forwards;
 }
 .welcome-content {
     position: relative;
     text-align: center;
 }
-/* 欢迎表情包：弹性弹入后持续心跳脉动 */
+/* 欢迎表情（SVG重绘，透明底）：弹性弹入后持续心跳脉动 */
 .welcome-emoji {
     display: block;
     width: clamp(150px, 22vw, 240px);
+    height: auto;
     margin: 0 auto;
-    border-radius: 26px;
-    box-shadow:
-        0 0 0 4px rgba(255,255,255,0.9),
-        0 0 34px rgba(236,72,153,0.85),
-        0 0 80px rgba(139,92,246,0.55);
+    filter: drop-shadow(0 0 26px rgba(236,72,153,0.8)) drop-shadow(0 0 64px rgba(139,92,246,0.5));
     opacity: 0;
     animation: emojiPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both,
                heartbeat 1.15s ease-in-out 0.62s infinite;
+}
+/* SVG 内部装饰动画：大爱心脉动、小爱心浮动、星星闪烁 */
+.welcome-emoji .big-heart {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: bigHeartBeat 1.15s ease-in-out 0.62s infinite;
+}
+.welcome-emoji .mini-heart {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: miniFloat 1.6s ease-in-out infinite;
+}
+.welcome-emoji .mini-heart.left  { animation-delay: 0.15s; }
+.welcome-emoji .mini-heart.right { animation-delay: 0.5s; }
+.welcome-emoji .star {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: starTwinkle 1.4s ease-in-out infinite;
 }
 .welcome-text {
     font-size: clamp(26px, 4.5vw, 42px);
@@ -92,41 +107,6 @@ body::after {
     opacity: 0;
     animation: welcomeTextIn 0.7s ease 0.48s both;
 }
-/* 爱心装饰（表情包周围，CSS绘制） */
-.heart-deco {
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    opacity: 0;
-    animation: heartTwinkle 1.4s ease-in-out infinite;
-}
-.heart-deco i {
-    position: absolute;
-    inset: 0;
-    background: #ff7ba6;
-    transform: rotate(45deg);
-    box-shadow: 0 0 12px rgba(255,123,166,0.9);
-}
-.heart-deco i::before,
-.heart-deco i::after {
-    content: "";
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: #ff7ba6;
-}
-.heart-deco i::before { top: -15px; left: 0; }
-.heart-deco i::after  { left: -15px; top: 0; }
-.heart-deco.h1 { top: -30px; left: -148px; animation-delay: 0.45s; }
-.heart-deco.h2 { top: 24px; right: -118px; width: 22px; height: 22px; animation-delay: 0.7s; }
-.heart-deco.h2 i, .heart-deco.h2 i::before, .heart-deco.h2 i::after { width: 22px; height: 22px; }
-.heart-deco.h2 i::before { top: -11px; }
-.heart-deco.h2 i::after  { left: -11px; }
-.heart-deco.h3 { bottom: -44px; left: -64px; width: 20px; height: 20px; animation-delay: 0.95s; }
-.heart-deco.h3 i, .heart-deco.h3 i::before, .heart-deco.h3 i::after { width: 20px; height: 20px; }
-.heart-deco.h3 i::before { top: -10px; }
-.heart-deco.h3 i::after  { left: -10px; }
 /* 光点闪烁（表情包与文字周围） */
 .welcome-spark {
     position: absolute;
@@ -145,9 +125,22 @@ body::after {
 .welcome-spark.s5 { bottom: -66px; left: 58px; width: 5px; height: 5px; animation-delay: 0.45s; }
 @keyframes welcomeFade {
     0%   { opacity: 0; }
-    12%  { opacity: 1; }
-    85%  { opacity: 1; }
+    10%  { opacity: 1; }
+    88%  { opacity: 1; }
     100% { opacity: 0; }
+}
+/* SVG 内部动画关键帧 */
+@keyframes bigHeartBeat {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.14); }
+}
+@keyframes miniFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-5px); }
+}
+@keyframes starTwinkle {
+    0%, 100% { opacity: 0.6; transform: scale(0.85); }
+    50%      { opacity: 1;   transform: scale(1.15); }
 }
 /* 表情包弹性弹入 */
 @keyframes emojiPop {
@@ -163,10 +156,6 @@ body::after {
 @keyframes welcomeTextIn {
     0%   { opacity: 0; transform: translateY(16px) scale(0.96); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes heartTwinkle {
-    0%, 100% { opacity: 0; }
-    50%      { opacity: 1; }
 }
 @keyframes sparkTwinkle {
     0%, 100% { opacity: 0; transform: scale(0.6); }
