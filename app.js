@@ -292,19 +292,21 @@ async function checkLiveStatus() {
     if (!avatarLink) return;
     // 仅当接口返回 2xx 且明确解析出 live_status===1（直播中）时才展示律动动画；
     // 403/404/网络失败/轮播(2)/未开播(0) 等一切非开播信号均保持原样
+    // 返回值：true=该通道可用（2xx，无论是否开播），false=通道不可用（非2xx/异常）
     const tryFetch = async (url) => {
         try {
             const resp = await fetch(url);
-            if (!resp.ok) return; // 非2xx视为检测失败，不做任何变更
+            if (!resp.ok) return false; // 非2xx视为通道不可用
             const data = await resp.json();
             // 兼容本站代理 {live_status} 与 B站原始 {data:{live_status}} 两种返回结构
             const raw = data && data.data ? data.data.live_status : data && data.live_status;
             if (raw === 1 || raw === '1') avatarLink.classList.add('live');
-        } catch (e) { /* 查询异常保持原样 */ }
+            return true; // 通道可用（无论开播与否），不再回退
+        } catch (e) { return false; }
     };
-    // 线上走本站 Cloudflare Pages Functions 代理（同源）；代理不可用（本地预览）时回退直连 B站接口
-    await tryFetch('./api/live-status');
-    if (!avatarLink.classList.contains('live')) {
+    // 线上走本站 Cloudflare Pages Functions 代理（同源）；仅当代理通道不可用（如本地静态预览）时才回退直连 B站接口
+    const proxyOk = await tryFetch('./api/live-status');
+    if (!proxyOk) {
         await tryFetch(`https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${LIVE_ROOM_ID}`);
     }
 }
