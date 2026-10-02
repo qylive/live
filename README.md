@@ -26,10 +26,10 @@
 - 随机背景图（2 张），页面刷新时随机切换，窗口缩放时不换图
 
 ### 直播间开播监控
-- 进入页面时查询一次 B 站直播间开播状态（不轮询）
+- 进入页面时读取一次 `live-status.json`（静态文件，不轮询）
 - 开播中：头像周围出现双圈粉色光环音乐律动动画
 - 未开播 / 轮播 / 查询失败：保持默认样式不变
-- 通过 Cloudflare Pages Functions 同源代理（/api/live-status）规避浏览器跨域限制
+- 状态由本地直播间监控程序（E:\danmu）检测到开播/下播时，通过 GitHub API 推送更新 `live-status.json`，页面直接读取静态文件（不经过服务器端转发，避免 CF 机房 IP 被 B 站风控）
 
 ### 欢迎动画
 - 进入页面时全屏暗色遮罩，居中显示「苑小苑」透明底表情图（原图 AI 抠图去白底），弹性弹入后持续心跳脉动
@@ -53,9 +53,7 @@ live/
 ├── style.css           # 样式表
 ├── app.js              # 主页交互逻辑
 ├── songs.json          # 歌单数据（min 压缩存储）
-├── functions/
-│   └── api/
-│       └── live-status.js # Cloudflare Pages Functions 直播状态代理
+├── live-status.json    # 直播状态（本地监控程序推送更新）
 ├── lib/
 │   └── xlsx.full.min.js # Excel 解析库（本地化，不依赖 CDN）
 ├── welcome-emoji.png    # 欢迎动画表情（透明底）
@@ -122,7 +120,6 @@ npx serve .
 项目为纯静态站点，可直接部署到任意静态托管服务。当前使用 Cloudflare Pages：
 
 - 构建命令：无
-- Cloudflare Pages Functions：自动识别 functions/ 目录编译，提供 /api/live-status 直播状态同源代理
 - 输出目录：根目录
 - 推送至 GitHub main 分支后自动部署
 
