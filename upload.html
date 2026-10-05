@@ -18,6 +18,30 @@
         padding: 0 20px;
         background-color: #f5f7fa;
     }
+    /* 全局滚动条（Firefox）：写在根元素，紫色滑块，浅色页面适配半透明浅灰轨道 */
+    html {
+        scrollbar-width: thin;
+        scrollbar-color: #b388ff rgba(0, 0, 0, 0.08);
+    }
+    /* 全局滚动条（Chrome / Edge / Safari）：与主页 index.html 统一紫色 */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.08);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #b388ff;
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #a78bfa;
+    }
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
     .container {
         background: #fff;
         padding: 30px;
