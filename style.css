@@ -12,7 +12,7 @@ html {
     text-size-adjust: 100%;
 }
 /* ===== 公共胶囊按钮基础样式（优化：抽取各发光按钮的重复属性） ===== */
-.top-right-btn, .user-link-btn, .filter-btn, .shuffle-btn, .random-btn, .modal-action-btn {
+.top-right-btn, .user-link-btn, .filter-btn, .singer-select, .random-btn, .modal-action-btn {
     border-radius: 20px;
     color: #fff;
     cursor: pointer;
@@ -50,7 +50,7 @@ body::after {
     background: rgba(120, 80, 200, 0.6);
     z-index: -1;
 }
-/* ========== 欢迎动画遮罩（页面载入自动播放约1.8s后淡出消失） ========== */
+/* ========== 欢迎动画遮罩（页面载入自动播放约2s后淡出消失） ========== */
 #welcome-overlay {
     position: fixed;
     inset: 0;
@@ -59,7 +59,7 @@ body::after {
     align-items: center;
     justify-content: center;
     background: radial-gradient(ellipse at center, rgba(40,20,80,0.92), rgba(10,5,30,0.97));
-    animation: welcomeFade 2.5s ease forwards;
+    animation: welcomeFade 2s ease forwards;
 }
 .welcome-content {
     position: relative;
@@ -410,14 +410,128 @@ body::after {
         0 0 8px rgba(139,92,246,0.45),
         inset 0 0 4px rgba(0,0,0,0.1);
 }
-/* ========== 搜索区打乱、随机按钮 统一粉色发光胶囊 ========== */
+/* ========== 搜索区：歌手下拉框 + 随机按钮 统一发光胶囊 ========== */
 .search-bar {
     width: 70%;
     margin: 0 auto 20px;
     display: flex;
     gap: 12px;
 }
-.shuffle-btn, .random-btn {
+/* 歌手筛选下拉框（自定义组件）：现代化交互，hover 仅增亮发光，不放大不位移 */
+.singer-select-wrap {
+    position: relative;
+}
+.singer-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 1px solid rgba(255,255,0.8);
+    background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+    font-weight: 500;
+    font-size: 15px;
+    white-space: nowrap;
+    color: #fff;
+    max-width: 230px;
+    cursor: pointer;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.18),
+        0 0 12px rgba(139,92,246,0.45),
+        inset 0 0 8px rgba(255,255,255,0.12);
+}
+.singer-select:hover {
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.35),
+        0 0 16px rgba(139,92,246,0.6),
+        inset 0 0 12px rgba(255,255,255,0.2);
+}
+.singer-select:active {
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.25),
+        0 0 10px rgba(139,92,246,0.55),
+        inset 0 0 6px rgba(0,0,0,0.08);
+}
+.singer-select-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.singer-select-arrow {
+    flex-shrink: 0;
+    opacity: 0.9;
+    transition: transform 0.22s ease;
+}
+.singer-select-wrap.open .singer-select-arrow {
+    transform: rotate(180deg);
+}
+/* 下拉面板：深色半透明、紫色滚动条（与歌单列表一致） */
+.singer-select-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 999;
+    min-width: 100%;
+    max-width: 260px;
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+    background: rgba(76, 29, 149, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(139, 92, 246, 0.35);
+    animation: dropdownIn 0.16s ease;
+}
+.singer-select-dropdown[hidden] {
+    display: none;
+}
+.singer-select-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+.singer-select-dropdown::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+.singer-select-dropdown::-webkit-scrollbar-thumb {
+    background: #b388ff;
+    border-radius: 4px;
+}
+.singer-opt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+.singer-opt:hover {
+    background: rgba(139, 92, 246, 0.45);
+}
+.singer-opt.active {
+    background: rgba(236, 72, 153, 0.42);
+    font-weight: 600;
+}
+.singer-opt-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.singer-opt-count {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #e0c0ff;
+}
+@keyframes dropdownIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.random-btn {
     padding: 10px 20px;
     border: 1px solid rgba(255,255,0.8);
     background: linear-gradient(135deg, #ec4899, #f472b6);
@@ -429,7 +543,7 @@ body::after {
         0 0 12px rgba(236,72,153,0.45),
         inset 0 0 8px rgba(255,255,255,0.12);
 }
-.shuffle-btn:hover, .random-btn:hover {
+.random-btn:hover {
     background: linear-gradient(135deg, #db2777, #ec4899);
     transform: translateY(-2px) scale(1.04);
     box-shadow:
@@ -437,12 +551,29 @@ body::after {
         0 0 18px rgba(236,72,153,0.65),
         inset 0 0 14px rgba(255,255,255,0.2);
 }
-.shuffle-btn:active, .random-btn:active {
+.random-btn:active {
     transform: translateY(-1px) scale(1.01);
     box-shadow:
         0 0 0 1px rgba(255,255,255,0.22),
         0 0 8px rgba(236,72,153,0.5),
         inset 0 0 4px rgba(0,0,0,0.1);
+}
+/* ========== 底部标识（Powered by） ========== */
+.footer {
+    width: 70%;
+    margin: 24px auto 30px;
+    text-align: center;
+}
+.footer-brand {
+    display: inline-block;
+    padding: 6px 18px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+    letter-spacing: 1px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 20px;
+    background: rgba(139, 92, 246, 0.18);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
 }
 .search-input {
     flex: 1;
@@ -746,7 +877,10 @@ body::after {
 
     .user-link-bar { width: 95%; }
     .search-bar { width: 95%; }
-    .shuffle-btn, .random-btn { padding: 10px 12px; font-size: 14px; }
+    .singer-select, .random-btn { padding: 10px 12px; font-size: 14px; }
+    .singer-select { max-width: 190px; }
+    .singer-select-dropdown { max-width: 240px; }
+    .footer { width: 95%; }
     
     .list-container { width: 95%; max-height: 480px; }
     
@@ -825,7 +959,9 @@ body::after {
         font-size: 13px;
     }
     .search-bar { flex-wrap: nowrap; }
-    .shuffle-btn, .random-btn { padding: 8px 10px; font-size: 12px; }
+    .singer-select, .random-btn { padding: 8px 10px; font-size: 12px; }
+    .singer-select { max-width: 150px; }
+    .singer-select-dropdown { max-width: 220px; }
     /* iOS 输入框字体须 ≥16px 防止聚焦时自动缩放页面 */
     .search-input { font-size: 16px; padding: 8px 10px; }
     

@@ -94,11 +94,52 @@ async function loadSongJson() {
         if (!res.ok) throw new Error('文件不存在或读取失败');
         allSongs = await res.json();
         filtered = [...allSongs];
+        buildSingerOptions();
         render();
     } catch (err) {
         console.error('加载歌单失败：', err);
         showToast('歌单文件加载失败，请检查songs.json', true);
     }
+}
+// ====================== 歌手下拉框：从歌单数据聚合提取 ======================
+// 拆分合唱歌手名的分隔符（不含字母 x，避免误拆 萧忆情Alex 这类名字）
+const SINGER_SEP_RE = /[、,，/／&＆]|\s+feat\.?\s+/i;
+// 当前选中的歌手名（'all' = 全部歌手）
+let currentSinger = 'all';
+function splitSingers(singer) {
+    return String(singer || '').split(SINGER_SEP_RE).map(s => s.trim()).filter(Boolean);
+}
+// 聚合统计：按拆分后的歌手名计数（一首歌里出现的每个歌手名各计一次），数量降序排列
+function buildSingerOptions() {
+    const dropdown = document.getElementById('singerSelectDropdown');
+    if (!dropdown) return;
+    const countMap = {};
+    allSongs.forEach(s => {
+        splitSingers(s.singer).forEach(name => {
+            countMap[name] = (countMap[name] || 0) + 1;
+        });
+    });
+    const entries = Object.entries(countMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
+    // 首项「全部歌手」，其余按数量降序追加；当前选中项高亮
+    dropdown.innerHTML = '';
+    const mk = (name, count) => {
+        const li = document.createElement('li');
+        li.className = 'singer-opt' + (currentSinger === name ? ' active' : '');
+        li.dataset.name = name;
+        const nm = document.createElement('span');
+        nm.className = 'singer-opt-name';
+        nm.textContent = count === undefined ? '全部歌手' : name;
+        li.appendChild(nm);
+        if (count !== undefined) {
+            const ct = document.createElement('span');
+            ct.className = 'singer-opt-count';
+            ct.textContent = count;
+            li.appendChild(ct);
+        }
+        dropdown.appendChild(li);
+    };
+    mk('all');
+    entries.forEach(([name, count]) => mk(name, count));
 }
 // ====================== 渲染函数：纯DIV生成，无table ======================
 function render() {
@@ -247,11 +288,14 @@ function doFilter() {
     const lang = document.querySelector('.filter-btn[data-type="lang"].active')?.dataset.val || 'all';
     const style = document.querySelector('.filter-btn[data-type="style"].active')?.dataset.val || 'all';
     const qufeng = document.querySelector('.filter-btn[data-type="qufeng"].active')?.dataset.val || 'all';
+    const singer = currentSinger;
     const kw = document.querySelector('.search-input').value.toLowerCase();
     filtered = allSongs.filter(s => {
         if (lang !== 'all' && s.lang !== lang) return false;
         if (style !== 'all' && s.style !== style) return false;
         if (qufeng !== 'all' && s.genre !== qufeng) return false;
+        // 歌手筛选：模糊匹配（选中歌手名，匹配歌手字段包含该名字的歌曲，合唱歌曲含多个名字也能命中）
+        if (singer !== 'all' && !s.singer.toLowerCase().includes(singer.toLowerCase())) return false;
         if (kw && !`${s.title}${s.singer}`.toLowerCase().includes(kw)) return false;
         return true;
     });
@@ -260,12 +304,41 @@ function doFilter() {
 }
 // 搜索
 document.querySelector('.search-input').oninput = doFilter;
-// 打乱
-document.querySelector('.shuffle-btn').onclick = () => {
-    filtered.sort(() => Math.random() - 0.5);
-    page = 1;
-    render();
-};
+// 歌手下拉框筛选（自定义组件交互）
+const singerWrap = document.getElementById('singerSelectWrap');
+const singerBtn = document.getElementById('singerSelectBtn');
+const singerLabel = document.getElementById('singerSelectLabel');
+const singerDropdown = document.getElementById('singerSelectDropdown');
+function toggleSingerDropdown(force) {
+    if (!singerDropdown) return;
+    const willOpen = force !== undefined ? force : singerDropdown.hidden;
+    singerDropdown.hidden = !willOpen;
+    singerBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    singerWrap.classList.toggle('open', willOpen);
+}
+function setSinger(name) {
+    currentSinger = name;
+    singerLabel.textContent = name === 'all' ? '全部歌手' : name;
+    document.querySelectorAll('.singer-opt').forEach(li => li.classList.toggle('active', li.dataset.name === name));
+    toggleSingerDropdown(false);
+    doFilter();
+}
+singerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleSingerDropdown();
+});
+singerDropdown.addEventListener('click', (e) => {
+    const li = e.target.closest('.singer-opt');
+    if (li) setSinger(li.dataset.name);
+});
+// 点击外部区域收起下拉
+document.addEventListener('click', (e) => {
+    if (singerWrap && !singerWrap.contains(e.target) && !singerDropdown.hidden) toggleSingerDropdown(false);
+});
+// Esc 收起下拉
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && singerDropdown && !singerDropdown.hidden) toggleSingerDropdown(false);
+});
 // 滚动加载
 document.querySelector('.list-container').onscroll = function () {
     const el = this;
