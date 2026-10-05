@@ -42,6 +42,12 @@
     ::-webkit-scrollbar-corner {
         background: transparent;
     }
+    /* 隐藏滚动条上下箭头（窗口及其余滚动区域，兼容封装浏览器默认渲染箭头） */
+    ::-webkit-scrollbar-button {
+        display: none;
+        width: 0;
+        height: 0;
+    }
 
     .container {
         background: #fff;

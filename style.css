@@ -30,6 +30,14 @@ html {
 ::-webkit-scrollbar-corner {
     background: transparent;
 }
+/* 隐藏滚动条上下箭头：窗口 + 歌单列表 + 下拉面板（兼容封装浏览器对元素滚动条默认渲染箭头的情况） */
+::-webkit-scrollbar-button,
+.list-container::-webkit-scrollbar-button,
+.singer-select-dropdown::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
 
 /* ===== 公共胶囊按钮基础样式（优化：抽取各发光按钮的重复属性） ===== */
 .top-right-btn, .user-link-btn, .filter-btn, .singer-select, .random-btn, .modal-action-btn {
