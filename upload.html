@@ -18,8 +18,8 @@
         padding: 0 20px;
         background-color: #f5f7fa;
     }
-    /* 全局滚动条（Firefox）：写在根元素，紫色滑块，浅色页面适配半透明浅灰轨道 */
-    html {
+    /* 滚动条（Firefox）：写在 body，紫色滑块，浅色页面适配半透明浅灰轨道（对齐 danmaku-viewer 写法，窗口滚动条走 ::-webkit-scrollbar 避免箭头） */
+    body {
         scrollbar-width: thin;
         scrollbar-color: #b388ff rgba(0, 0, 0, 0.08);
     }
@@ -42,12 +42,7 @@
     ::-webkit-scrollbar-corner {
         background: transparent;
     }
-    /* 隐藏滚动条上下箭头（与主页一致，参考 danmaku-viewer 无箭头效果） */
-    ::-webkit-scrollbar-button {
-        display: none;
-        width: 0;
-        height: 0;
-    }
+
     .container {
         background: #fff;
         padding: 30px;

@@ -10,9 +10,6 @@
 html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    /* 全局滚动条（Firefox）：与歌单列表/下拉面板统一紫色 */
-    scrollbar-width: thin;
-    scrollbar-color: #b388ff rgba(255, 255, 255, 0.1);
 }
 /* 全局滚动条（Chrome / Edge / Safari）：统一紫色，与歌单列表一致 */
 ::-webkit-scrollbar {
@@ -33,12 +30,7 @@ html {
 ::-webkit-scrollbar-corner {
     background: transparent;
 }
-/* 隐藏滚动条上下箭头（与 danmaku-viewer 一致的无箭头效果） */
-::-webkit-scrollbar-button {
-    display: none;
-    width: 0;
-    height: 0;
-}
+
 /* ===== 公共胶囊按钮基础样式（优化：抽取各发光按钮的重复属性） ===== */
 .top-right-btn, .user-link-btn, .filter-btn, .singer-select, .random-btn, .modal-action-btn {
     border-radius: 20px;
@@ -53,6 +45,9 @@ body {
     position: relative;
     min-height: 100vh;
     min-height: 100dvh;
+    /* 滚动条（Firefox）：与歌单列表/下拉面板统一紫色（对齐 danmaku-viewer 写法，避免窗口滚动条走标准模式出现箭头） */
+    scrollbar-width: thin;
+    scrollbar-color: #b388ff rgba(255, 255, 255, 0.1);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
     /* 适配 iPhone 刘海/底部横条安全区域 */
