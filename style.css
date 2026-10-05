@@ -514,6 +514,9 @@ body::after {
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(139, 92, 246, 0.35);
     animation: dropdownIn 0.16s ease;
+    /* 重置 body 继承的标准滚动条属性，强制走 ::-webkit-scrollbar 自定义路径（避免封装浏览器标准模式渲染箭头） */
+    scrollbar-width: auto;
+    scrollbar-color: auto;
 }
 .singer-select-dropdown[hidden] {
     display: none;
@@ -637,6 +640,9 @@ body::after {
     padding: 10px;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    /* 重置 body 继承的标准滚动条属性，强制走 ::-webkit-scrollbar 自定义路径（避免封装浏览器标准模式渲染箭头） */
+    scrollbar-width: auto;
+    scrollbar-color: auto;
 }
 /* 自定义滚动条 */
 .list-container::-webkit-scrollbar {

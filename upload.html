@@ -156,6 +156,9 @@
         font-family: monospace;
         font-size: 13px;
         line-height: 1.6;
+        /* 重置 body 继承的标准滚动条属性，强制走 ::-webkit-scrollbar 自定义路径（避免封装浏览器标准模式渲染箭头） */
+        scrollbar-width: auto;
+        scrollbar-color: auto;
     }
     .btn-group {
         margin: 20px 0;
