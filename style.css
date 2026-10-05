@@ -33,6 +33,12 @@ html {
 ::-webkit-scrollbar-corner {
     background: transparent;
 }
+/* 隐藏滚动条上下箭头（与 danmaku-viewer 一致的无箭头效果） */
+::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
 /* ===== 公共胶囊按钮基础样式（优化：抽取各发光按钮的重复属性） ===== */
 .top-right-btn, .user-link-btn, .filter-btn, .singer-select, .random-btn, .modal-action-btn {
     border-radius: 20px;
