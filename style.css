@@ -382,29 +382,27 @@ body::after {
     align-items: center;
     justify-content: center;
 }
-/* 移动端分组容器 默认隐藏 */
-.filter-group-mobile {
+/* ========== 筛选下拉栏（<1700px 时替代一行按钮，交互与歌手下拉一致，占用更少空间） ========== */
+.filter-select-bar {
     display: none;
-    width: 95%;
+    width: 70%;
     margin: 0 auto 20px;
-}
-.filter-group {
-    margin-bottom: 14px;
-}
-.filter-group-buttons {
-    display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    justify-content: flex-start; /* 左对齐 */
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
 }
-/* ========== 筛选栏三行切换断点：<1700px 时切换为三行（≥1025px 仍保持PC布局，仅筛选栏换行） ========== */
-@media (min-width: 1025px) and (max-width: 1699px) {
+/* 筛选下拉容器：默认按内容宽度紧凑并排居中；≤1024px 时均分整行防止换行 */
+.filter-select-wrap {
+    flex: 0 0 auto;
+}
+.filter-select {
+    justify-content: center;
+}
+/* <1700px：隐藏一行按钮，切换为筛选下拉栏 */
+@media (max-width: 1699px) {
     .filter-bar { display: none; }
-    .filter-group-mobile {
-        display: block;
-        width: fit-content;
-        margin: 0 auto 20px;
-    }
+    .filter-select-bar { display: flex; }
 }
 
 .filter-btn {
@@ -895,21 +893,9 @@ body::after {
     .header h1 { font-size: 22px; }
     .header p { font-size: 16px; }
 
-    /* 隐藏PC一行筛选栏，显示分组三排筛选 */
-    .filter-bar {
-        display: none;
-    }
-    .filter-group-mobile {
-        display: block;
-        width: fit-content;
-        margin: 0 auto 20px;
-    }
-    .filter-group {
-        margin-bottom: 14px;
-    }
-    .filter-btn {
-        padding: 10px 20px;
-        font-size: 14px;
+    /* 筛选下拉栏适配移动端宽度 */
+    .filter-select-bar {
+        width: 95%;
     }
 
     .user-link-bar { width: 95%; }
@@ -991,14 +977,19 @@ body::after {
         font-size: 16px;
         padding: 8px 18px;
     }
-    .filter-btn {
-        padding: 8px 16px;
-        font-size: 13px;
-    }
+
     .search-bar { flex-wrap: nowrap; }
     .singer-select, .random-btn { padding: 8px 10px; font-size: 12px; }
     .singer-select { max-width: 150px; }
     .singer-select-dropdown { max-width: 220px; }
+    /* 手机端：三个筛选下拉均分一行，避免换行（481-1024px 保持紧凑居中） */
+    .filter-select-wrap {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    .filter-select {
+        width: 100%;
+    }
     /* iOS 输入框字体须 ≥16px 防止聚焦时自动缩放页面 */
     .search-input { font-size: 16px; padding: 8px 10px; }
     

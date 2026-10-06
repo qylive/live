@@ -110,11 +110,12 @@ function splitSingers(singer) {
     return String(singer || '').split(SINGER_SEP_RE).map(s => s.trim()).filter(Boolean);
 }
 // 聚合统计：按拆分后的歌手名计数（一首歌里出现的每个歌手名各计一次），数量降序排列
-function buildSingerOptions() {
+// pool 参数：默认全部歌曲；语言/风格/曲风筛选时传入筛选后的歌曲池，实现歌手列表联动
+function buildSingerOptions(pool) {
     const dropdown = document.getElementById('singerSelectDropdown');
     if (!dropdown) return;
     const countMap = {};
-    allSongs.forEach(s => {
+    (pool || allSongs).forEach(s => {
         splitSingers(s.singer).forEach(name => {
             countMap[name] = (countMap[name] || 0) + 1;
         });
@@ -140,6 +141,25 @@ function buildSingerOptions() {
     };
     mk('all');
     entries.forEach(([name, count]) => mk(name, count));
+}
+// 语言/风格/曲风筛选变化时，基于当前三项筛选后的歌曲池重建歌手列表；
+// 若当前选中的歌手已不在新列表中（例如筛选后其歌曲全部被过滤），自动重置为「全部歌手」
+function syncSingerListWithFilters() {
+    const lang = document.querySelector('.filter-btn[data-type="lang"].active')?.dataset.val || 'all';
+    const style = document.querySelector('.filter-btn[data-type="style"].active')?.dataset.val || 'all';
+    const qufeng = document.querySelector('.filter-btn[data-type="qufeng"].active')?.dataset.val || 'all';
+    const pool = allSongs.filter(s => {
+        if (lang !== 'all' && s.lang !== lang) return false;
+        if (style !== 'all' && s.style !== style) return false;
+        if (qufeng !== 'all' && s.genre !== qufeng) return false;
+        return true;
+    });
+    buildSingerOptions(pool);
+    if (currentSinger !== 'all' && !pool.some(s => String(s.singer || '').includes(currentSinger))) {
+        currentSinger = 'all';
+        if (singerLabel) singerLabel.textContent = '全部歌手';
+        document.querySelectorAll('.singer-opt').forEach(li => li.classList.toggle('active', li.dataset.name === 'all'));
+    }
 }
 // ====================== 渲染函数：纯DIV生成，无table ======================
 function render() {
@@ -281,6 +301,7 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.onclick = () => {
         document.querySelectorAll(`.filter-btn[data-type="${btn.dataset.type}"]`).forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        syncSingerListWithFilters();
         doFilter();
     };
 });
@@ -338,6 +359,79 @@ document.addEventListener('click', (e) => {
 // Esc 收起下拉
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && singerDropdown && !singerDropdown.hidden) toggleSingerDropdown(false);
+});
+// ===== 筛选下拉框（<1700px 时替代一行筛选按钮，交互与歌手下拉一致） =====
+// 三个维度的固定选项（与 filter-bar 按钮一致）
+const FILTER_OPTIONS = {
+    lang: [
+        { val: 'all', label: '全部语言' },
+        { val: '中文', label: '中文' },
+        { val: '日文', label: '日文' },
+        { val: '英文', label: '英文' }
+    ],
+    style: [
+        { val: 'all', label: '全部风格' },
+        { val: '甜歌', label: '甜歌' },
+        { val: '苦情', label: '苦情' }
+    ],
+    qufeng: [
+        { val: 'all', label: '全部曲风' },
+        { val: '流行', label: '流行' },
+        { val: '国风', label: '国风' }
+    ]
+};
+document.querySelectorAll('.filter-select-wrap').forEach(wrap => {
+    const type = wrap.dataset.ftype;
+    const btn = wrap.querySelector('.filter-select');
+    const label = wrap.querySelector('.singer-select-label');
+    const dropdown = wrap.querySelector('.singer-select-dropdown');
+    const options = FILTER_OPTIONS[type];
+    // 打开时重建选项，高亮当前选中项
+    function buildOptions() {
+        const activeVal = document.querySelector(`.filter-btn[data-type="${type}"].active`)?.dataset.val || 'all';
+        dropdown.innerHTML = '';
+        options.forEach(opt => {
+            const li = document.createElement('li');
+            li.className = 'singer-opt' + (activeVal === opt.val ? ' active' : '');
+            li.dataset.val = opt.val;
+            const nm = document.createElement('span');
+            nm.className = 'singer-opt-name';
+            nm.textContent = opt.label;
+            li.appendChild(nm);
+            dropdown.appendChild(li);
+        });
+    }
+    function toggle(force) {
+        const willOpen = force !== undefined ? force : dropdown.hidden;
+        dropdown.hidden = !willOpen;
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        wrap.classList.toggle('open', willOpen);
+        if (willOpen) buildOptions();
+    }
+    function select(val) {
+        // 同步一行按钮的 active 状态（doFilter 仍从 .filter-btn 读取，保证两种模式状态一致）
+        document.querySelectorAll(`.filter-btn[data-type="${type}"]`).forEach(b => b.classList.remove('active'));
+        const target = document.querySelector(`.filter-btn[data-type="${type}"][data-val="${val}"]`);
+        if (target) target.classList.add('active');
+        const opt = options.find(o => o.val === val);
+        if (opt) label.textContent = opt.label;
+        toggle(false);
+        syncSingerListWithFilters();
+        doFilter();
+    }
+    btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+    dropdown.addEventListener('click', (e) => {
+        const li = e.target.closest('.singer-opt');
+        if (li) select(li.dataset.val);
+    });
+    // 点击外部区域收起
+    document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target) && !dropdown.hidden) toggle(false);
+    });
+    // Esc 收起
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !dropdown.hidden) toggle(false);
+    });
 });
 // 滚动加载
 document.querySelector('.list-container').onscroll = function () {
