@@ -306,8 +306,11 @@ body::after {
     justify-content: center;
     gap: 36px;
 }
-/* 头像容器禁止压缩 */
+/* 头像容器禁止压缩，头像与直播状态标识纵向居中排列 */
 .header-avatar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     flex-shrink: 0;
 }
 /* PC文字居中对齐 */
@@ -332,6 +335,50 @@ body::after {
 }
 .avatar-link:hover .avatar {
     transform: scale(1.05);
+}
+/* ========== 直播状态圆框标识（头像正下方） ========== */
+/* 未开播默认：低调灰色胶囊；开播 .live：粉色发光 + 呼吸红点 */
+.live-badge {
+    margin-top: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    color: #b9b8c9;
+    border: 1.5px solid rgba(255, 255, 255, 0.28);
+    background: rgba(15, 10, 30, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    user-select: none;
+}
+.live-badge::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #8a8796;
+    flex-shrink: 0;
+}
+.live-badge.live {
+    color: #ff99cc;
+    border-color: rgba(244, 114, 182, 0.85);
+    background: rgba(244, 114, 182, 0.16);
+    text-shadow: 0 0 10px rgba(236, 72, 153, 0.65);
+    box-shadow: 0 0 12px rgba(236, 72, 153, 0.35);
+}
+.live-badge.live::before {
+    background: #4ade80;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.95);
+    animation: liveDot 1.2s ease-in-out infinite;
+}
+@keyframes liveDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(0.78); }
 }
 /* ========== B站开播中：头像周围音乐律动动画 ========== */
 /* 两圈粉色光环交替扩散；默认完全隐藏（animation:none 使 opacity:0 生效），仅 .live 时应用动画 */
@@ -890,6 +937,7 @@ body::after {
         width: 140px;
         height: 140px;
     }
+    .live-badge { margin-top: 8px; padding: 3px 12px; font-size: 12px; }
     .header h1 { font-size: 22px; }
     .header p { font-size: 16px; }
 

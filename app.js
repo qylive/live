@@ -460,6 +460,7 @@ if (welcomeOverlay) {
 // 仅当 live_status===1（直播中）时才展示律动动画；其他一切情况均保持原样
 async function checkLiveStatus() {
     const avatarLink = document.querySelector('.avatar-link');
+    const liveBadge = document.getElementById('liveBadge');
     if (!avatarLink) return;
     try {
         const resp = await fetch('./live-status.json?_t=' + Date.now());
@@ -467,7 +468,8 @@ async function checkLiveStatus() {
         const data = await resp.json();
         if (data && (data.live_status === 1 || data.live_status === '1')) {
             avatarLink.classList.add('live');
+            if (liveBadge) { liveBadge.classList.add('live'); liveBadge.textContent = '直播中'; }
         }
-    } catch (e) { /* 网络失败保持原样 */ }
+    } catch (e) { /* 网络失败保持原样（显示默认“未开播”） */ }
 }
 checkLiveStatus();
