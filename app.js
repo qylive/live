@@ -165,6 +165,24 @@ function syncSingerListWithFilters() {
 function render() {
   const wrapEl = document.getElementById('list');
   const pageData = filtered.slice((page - 1) * size, page * size);
+
+  // 搜索/筛选无结果时显示空状态提示（不渲染表头与列表行）
+  if (page === 1 && filtered.length === 0) {
+    wrapEl.innerHTML = `
+      <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+        <div class="empty-title">未找到相关歌曲</div>
+        <div class="empty-sub">试试更换关键词，或调整筛选条件</div>
+        <button class="empty-reset" onclick="resetAllFilters()">一键清空筛选</button>
+      </div>
+    `;
+    document.getElementById('song-count').innerText = '0 首歌';
+    return;
+  }
+
   let htmlStr = '';
 
   // 第一页绘制PC表头
@@ -217,6 +235,28 @@ function render() {
   if(page === 1) wrapEl.innerHTML = htmlStr;
   else wrapEl.innerHTML += htmlStr;
   document.getElementById('song-count').innerText = filtered.length + ' 首歌';
+}
+// 一键清空所有筛选条件（语言/风格/曲风/歌手/搜索词），回到全部歌单
+function resetAllFilters() {
+    // 筛选按钮全部重置为「全部」
+    document.querySelectorAll('.filter-btn[data-type]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn[data-val="all"]').forEach(b => b.classList.add('active'));
+    // 三个筛选下拉 label 同步为「全部语言 / 全部风格 / 全部曲风」
+    document.querySelectorAll('.filter-select-wrap').forEach(wrap => {
+        const type = wrap.dataset.ftype;
+        const opt = FILTER_OPTIONS[type] && FILTER_OPTIONS[type].find(o => o.val === 'all');
+        if (opt) wrap.querySelector('.singer-select-label').textContent = opt.label;
+    });
+    // 歌手重置为「全部歌手」
+    currentSinger = 'all';
+    if (singerLabel) singerLabel.textContent = '全部歌手';
+    document.querySelectorAll('.singer-opt').forEach(li => li.classList.toggle('active', li.dataset.name === 'all'));
+    // 清空搜索框
+    const input = document.querySelector('.search-input');
+    if (input) input.value = '';
+    // 重建歌手列表并重新筛选
+    syncSingerListWithFilters();
+    doFilter();
 }
 // 点击整行复制
 function copyThis(index) {

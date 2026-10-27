@@ -563,6 +563,57 @@ body::after {
     scrollbar-width: auto;
     scrollbar-color: auto;
 }
+/* ========== 空状态提示：搜索/筛选无结果时显示 ========== */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 70px 20px;
+    text-align: center;
+    color: #c9c2e8;
+    user-select: none;
+}
+.empty-icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 6px;
+    color: rgba(179, 136, 255, 0.55);
+}
+.empty-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #e6dcff;
+    letter-spacing: 0.5px;
+}
+.empty-sub {
+    font-size: 13px;
+    color: #9a93b8;
+}
+.empty-reset {
+    margin-top: 14px;
+    padding: 8px 24px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    color: #e6dcff;
+    border: 1.5px solid rgba(179, 136, 255, 0.6);
+    background: rgba(139, 92, 246, 0.28);
+    transition: all 0.25s ease;
+    user-select: none;
+}
+.empty-reset:hover {
+    background: rgba(139, 92, 246, 0.45);
+    border-color: rgba(179, 136, 255, 0.9);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+    transform: translateY(-1px);
+}
+.empty-reset:active {
+    transform: translateY(0);
+}
 .singer-select-dropdown[hidden] {
     display: none;
 }
