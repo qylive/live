@@ -101,11 +101,16 @@ async function loadSongJson() {
         showToast('歌单文件加载失败，请检查songs.json', true);
     }
 }
-// ====================== 歌手下拉框：从歌单数据聚合提取 ======================
+// ====================== 歌手下拉框：数据聚合 + 关键字联想 ======================
 // 拆分合唱歌手名的分隔符（不含字母 x，避免误拆 萧忆情Alex 这类名字）
 const SINGER_SEP_RE = /[、,，/／&＆]|\s+feat\.?\s+/i;
 // 当前选中的歌手名（'all' = 全部歌手）
 let currentSinger = 'all';
+// 当前歌曲池聚合出的歌手条目（按歌曲数量降序）
+let singerOptions = [];
+// 下拉搜索关键字 / 键盘高亮索引
+let singerKeyword = '';
+let singerActiveIdx = -1;
 function splitSingers(singer) {
     return String(singer || '').split(SINGER_SEP_RE).map(s => s.trim()).filter(Boolean);
 }
@@ -120,13 +125,23 @@ function buildSingerOptions(pool) {
             countMap[name] = (countMap[name] || 0) + 1;
         });
     });
-    const entries = Object.entries(countMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
-    // 首项「全部歌手」，其余按数量降序追加；当前选中项高亮
-    dropdown.innerHTML = '';
+    singerOptions = Object.entries(countMap)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'))
+        .map(([name, count]) => ({ name, count }));
+    renderSingerOptions();
+}
+// 按当前关键字渲染选项：歌手名包含关键字即命中（大小写不敏感）
+function renderSingerOptions() {
+    const dropdown = document.getElementById('singerSelectDropdown');
+    if (!dropdown) return;
+    const kw = singerKeyword.trim().toLowerCase();
+    const matched = kw ? singerOptions.filter(o => o.name.toLowerCase().includes(kw)) : singerOptions;
     const mk = (name, count) => {
         const li = document.createElement('li');
         li.className = 'singer-opt' + (currentSinger === name ? ' active' : '');
         li.dataset.name = name;
+        li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', currentSinger === name ? 'true' : 'false');
         const nm = document.createElement('span');
         nm.className = 'singer-opt-name';
         nm.textContent = count === undefined ? '全部歌手' : name;
@@ -139,8 +154,32 @@ function buildSingerOptions(pool) {
         }
         dropdown.appendChild(li);
     };
-    mk('all');
-    entries.forEach(([name, count]) => mk(name, count));
+    dropdown.innerHTML = '';
+    // 「全部歌手」仅在未输入关键字时出现，避免联想结果里混入无法匹配的项
+    if (!kw) mk('all');
+    matched.forEach(o => mk(o.name, o.count));
+    const noResult = document.getElementById('singerNoResult');
+    if (noResult) noResult.hidden = !(kw && matched.length === 0);
+    // 有关键字时默认高亮第一项，回车即可直接选中
+    singerActiveIdx = (kw && matched.length) ? 0 : -1;
+    updateSingerHighlight();
+}
+// 键盘高亮跟随（上下键切换、滚动进可视区域）
+function updateSingerHighlight() {
+    const items = [...document.querySelectorAll('#singerSelectDropdown .singer-opt')];
+    items.forEach((li, i) => li.classList.toggle('kb-active', i === singerActiveIdx));
+    if (singerActiveIdx >= 0 && items[singerActiveIdx]) {
+        items[singerActiveIdx].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+}
+// 清空联想关键字（选择歌手 / 关闭面板 / 一键重置时调用）
+function resetSingerSearch() {
+    singerKeyword = '';
+    singerActiveIdx = -1;
+    const input = document.getElementById('singerSearchInput');
+    if (input) input.value = '';
+    const clear = document.getElementById('singerSearchClear');
+    if (clear) clear.hidden = true;
 }
 // 语言/风格/曲风筛选变化时，基于当前三项筛选后的歌曲池重建歌手列表；
 // 若当前选中的歌手已不在新列表中（例如筛选后其歌曲全部被过滤），自动重置为「全部歌手」
@@ -251,6 +290,8 @@ function resetAllFilters() {
     currentSinger = 'all';
     if (singerLabel) singerLabel.textContent = '全部歌手';
     document.querySelectorAll('.singer-opt').forEach(li => li.classList.toggle('active', li.dataset.name === 'all'));
+    // 清空歌手联想关键字
+    resetSingerSearch();
     // 清空搜索框
     const input = document.querySelector('.search-input');
     if (input) input.value = '';
@@ -365,17 +406,28 @@ function doFilter() {
 }
 // 搜索
 document.querySelector('.search-input').oninput = doFilter;
-// 歌手下拉框筛选（自定义组件交互）
+// 歌手下拉框筛选（自定义组件交互：按钮 + 面板内输入联想）
 const singerWrap = document.getElementById('singerSelectWrap');
 const singerBtn = document.getElementById('singerSelectBtn');
+const singerPanel = document.getElementById('singerSelectPanel');
 const singerLabel = document.getElementById('singerSelectLabel');
 const singerDropdown = document.getElementById('singerSelectDropdown');
+const singerSearchInput = document.getElementById('singerSearchInput');
+const singerSearchClear = document.getElementById('singerSearchClear');
 function toggleSingerDropdown(force) {
-    if (!singerDropdown) return;
-    const willOpen = force !== undefined ? force : singerDropdown.hidden;
-    singerDropdown.hidden = !willOpen;
-    singerBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (!singerPanel) return;
+    const willOpen = force !== undefined ? force : singerPanel.hidden;
+    singerPanel.hidden = !willOpen;
+    if (singerBtn) singerBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
     singerWrap.classList.toggle('open', willOpen);
+    // 无论开合都清空关键字：下次打开回到完整列表，避免残留搜索态
+    resetSingerSearch();
+    renderSingerOptions();
+    if (!willOpen) return;
+    const active = singerDropdown.querySelector('.singer-opt.active');
+    if (active) active.scrollIntoView({ block: 'nearest' });
+    // 桌面端（有鼠标）自动聚焦输入框；触屏端不抢焦点，避免一打开就弹键盘
+    if (singerSearchInput && window.matchMedia('(hover: hover)').matches) singerSearchInput.focus();
 }
 function setSinger(name) {
     currentSinger = name;
@@ -392,13 +444,54 @@ singerDropdown.addEventListener('click', (e) => {
     const li = e.target.closest('.singer-opt');
     if (li) setSinger(li.dataset.name);
 });
+// 输入即联想
+singerSearchInput.addEventListener('input', () => {
+    singerKeyword = singerSearchInput.value;
+    singerSearchClear.hidden = !singerKeyword;
+    renderSingerOptions();
+});
+// 键盘操作：↑↓ 切换高亮、回车选中、Esc 先清关键字再收起
+singerSearchInput.addEventListener('keydown', (e) => {
+    const items = [...singerDropdown.querySelectorAll('.singer-opt')];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!items.length) return;
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        singerActiveIdx = singerActiveIdx < 0
+            ? (step > 0 ? 0 : items.length - 1)
+            : (singerActiveIdx + step + items.length) % items.length;
+        updateSingerHighlight();
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        const li = items[singerActiveIdx] || items[0];
+        if (li) setSinger(li.dataset.name);
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (singerSearchInput.value) {
+            resetSingerSearch();
+            renderSingerOptions();
+        } else {
+            toggleSingerDropdown(false);
+        }
+    }
+});
+// 一键清空关键字
+singerSearchClear.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetSingerSearch();
+    renderSingerOptions();
+    singerSearchInput.focus();
+});
 // 点击外部区域收起下拉
 document.addEventListener('click', (e) => {
-    if (singerWrap && !singerWrap.contains(e.target) && !singerDropdown.hidden) toggleSingerDropdown(false);
+    if (singerWrap && !singerWrap.contains(e.target) && !singerPanel.hidden) toggleSingerDropdown(false);
 });
-// Esc 收起下拉
+// Esc 收起下拉（焦点在下拉面板外部时）
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && singerDropdown && !singerDropdown.hidden) toggleSingerDropdown(false);
+    if (e.key === 'Escape' && singerPanel && !singerPanel.hidden) toggleSingerDropdown(false);
 });
 // ===== 筛选下拉框（<1700px 时替代一行筛选按钮，交互与歌手下拉一致） =====
 // 三个维度的固定选项（与 filter-bar 按钮一致）

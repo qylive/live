@@ -657,6 +657,105 @@ body::after {
     font-size: 12px;
     color: #e0c0ff;
 }
+/* ========== 歌手筛选下拉面板：搜索框 + 选项区（输入关键字实时联想） ========== */
+.singer-select-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 999;
+    width: 244px;
+    max-width: calc(100vw - 40px);
+    padding: 6px;
+    background: rgba(76, 29, 149, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(139, 92, 246, 0.35);
+    animation: dropdownIn 0.16s ease;
+}
+.singer-select-panel[hidden] {
+    display: none;
+}
+.singer-search-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    margin-bottom: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.singer-search-box:focus-within {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
+}
+.singer-search-icon {
+    flex-shrink: 0;
+    color: rgba(230, 220, 255, 0.6);
+}
+.singer-search-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.4;
+}
+.singer-search-input::placeholder {
+    color: rgba(230, 220, 255, 0.5);
+}
+.singer-search-clear {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    color: #f3e8ff;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.singer-search-clear:hover {
+    background: rgba(139, 92, 246, 0.75);
+}
+.singer-search-clear[hidden],
+.singer-no-result[hidden] {
+    display: none;
+}
+.singer-no-result {
+    padding: 14px 8px;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(230, 220, 255, 0.65);
+}
+/* 面板内列表：取消绝对定位与自身外框，只保留滚动（滚动条沿用上方紫色样式） */
+.singer-select-panel .singer-select-dropdown {
+    position: static;
+    min-width: 0;
+    max-width: none;
+    max-height: 236px;
+    padding: 0 2px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    animation: none;
+}
+/* 键盘上下键高亮项（与鼠标 hover 观感一致） */
+.singer-opt.kb-active {
+    background: rgba(139, 92, 246, 0.45);
+}
 @keyframes dropdownIn {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -1081,6 +1180,9 @@ body::after {
     .singer-select, .random-btn { padding: 8px 10px; font-size: 12px; }
     .singer-select { max-width: 150px; }
     .singer-select-dropdown { max-width: 220px; }
+    /* 歌手联想搜索：小屏面板收窄，输入框字体 ≥16px 防止 iOS 聚焦缩放 */
+    .singer-select-panel { width: 224px; }
+    .singer-search-input { font-size: 16px; }
     /* 手机端：三个筛选下拉均分一行，避免换行（481-1024px 保持紧凑居中） */
     .filter-select-wrap {
         flex: 1 1 0;

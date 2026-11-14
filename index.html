@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>栖苑歌单</title>
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="./style.css?v=21">
+<link rel="stylesheet" href="./style.css?v=22">
 </head>
 <body>
 <!-- 欢迎动画遮罩：进入页面时暗化全屏，表情包+欢迎语弹入渐显，约1.8秒后淡出消失 -->
@@ -118,11 +118,23 @@
 <div class="search-bar">
     <!-- 歌手下拉框：自定义组件（下拉面板滚动条可定制为紫色，动效参考主流现代化下拉框） -->
     <div class="singer-select-wrap" id="singerSelectWrap">
-        <button type="button" class="singer-select" id="singerSelectBtn" aria-haspopup="listbox" aria-expanded="false">
+        <button type="button" class="singer-select" id="singerSelectBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="singerSelectPanel">
             <span class="singer-select-label" id="singerSelectLabel">全部歌手</span>
             <svg class="singer-select-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
-        <ul class="singer-select-dropdown" id="singerSelectDropdown" role="listbox" hidden></ul>
+        <!-- 下拉面板：顶部搜索框固定，下方选项区独立滚动 -->
+        <div class="singer-select-panel" id="singerSelectPanel" hidden>
+            <div class="singer-search-box">
+                <svg class="singer-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="M20 20l-3.5-3.5"></path>
+                </svg>
+                <input type="text" class="singer-search-input" id="singerSearchInput" placeholder="输入歌手名联想" autocomplete="off" spellcheck="false">
+                <button type="button" class="singer-search-clear" id="singerSearchClear" aria-label="清空搜索" hidden>×</button>
+            </div>
+            <ul class="singer-select-dropdown" id="singerSelectDropdown" role="listbox"></ul>
+            <div class="singer-no-result" id="singerNoResult" hidden>没有匹配的歌手</div>
+        </div>
     </div>
     <input class="search-input" placeholder="搜索歌名/歌手">
     <button class="random-btn">随机一首</button>
@@ -136,6 +148,6 @@
 <div class="footer">
     <span class="footer-brand">Powered by 星羽</span>
 </div>
-<script src="./app.js?v=18"></script>
+<script src="./app.js?v=19"></script>
 </body>
 </html>
