@@ -211,6 +211,7 @@
             操作步骤：<br>
             1. 填入你的个人密钥<br>
             2. 选择导入方式（Excel表格 或 粘贴JSON，二选一）<br>
+            <span style="color:#409eff">Excel 自动识别飞书导出歌单表与旧 6 列模板，无需改表头</span><br>
             3. 数据会自动转换成预览<br>
             4. 确认内容无误，点击提交同步线上歌单与更新日期
         </div>
@@ -236,6 +237,7 @@
         </div>
         <div class="item-box">
             <label>转换结果预览（长内容可上下滑动）</label>
+            <div class="tip" id="detectInfo"></div>
             <textarea id="jsonBox" readonly placeholder="导入表格或JSON后，数据会显示在这里"></textarea>
         </div>
         <div class="btn-group">
@@ -255,6 +257,7 @@ let pendingList = null;
 const uploadBtn = document.getElementById('uploadBtn');
 const fileInput = document.getElementById('fileInput');
 const jsonBox = document.getElementById('jsonBox');
+const detectInfo = document.getElementById('detectInfo');
 const pushBtn = document.getElementById('pushBtn');
 const githubToken = document.getElementById('githubToken');
 const modeExcel = document.getElementById('modeExcel');
@@ -273,6 +276,7 @@ function switchMode(mode) {
     jsonArea.style.display = isExcel ? 'none' : 'block';
     pendingList = null;
     jsonBox.value = '';
+    detectInfo.innerText = '';
     pushBtn.disabled = true;
     if (!isExcel) jsonInput.focus();
 }
@@ -287,13 +291,15 @@ function showToast(msg, type = 'default') {
     setTimeout(() => toastEl.className = 'toast', 2800);
 }
 
-// 语言标准化处理
+// 语言标准化处理：兼容「中/日/英」简写及「国语/日语/英语」等写法，未识别的值原样保留
 function normalizeLang(lang) {
-    if (!lang) return '';
-    const s = lang.toString().trim();
-    if (s.includes('中')) return '中文';
-    if (s.includes('英')) return '英文';
-    if (s.includes('日')) return '日文';
+    if (lang === null || lang === undefined) return '';
+    const s = String(lang).trim();
+    if (!s) return '';
+    const low = s.toLowerCase();
+    if (/^(中|中文|国语|华语|汉语|普通话|粤语|广东话)$/.test(s) || s.includes('中文') || s.includes('国语') || s.includes('华语') || s.includes('粤语')) return '中文';
+    if (/^(日|日文|日语)$/.test(s) || s.includes('日文') || s.includes('日语') || low === 'japanese' || low === 'ja' || low === 'jp') return '日文';
+    if (/^(英|英文|英语)$/.test(s) || s.includes('英文') || s.includes('英语') || low === 'english' || low === 'en') return '英文';
     return s;
 }
 
@@ -381,7 +387,73 @@ importJsonBtn.onclick = () => {
     showToast(`JSON 导入成功，共 ${pendingList.length} 首，可以推送`, 'success');
 };
 
-// 解析Excel（模板固定：歌名 | 歌手 | 类型(曲风[;风格]) | 语言 | SC [| 风格可选]）
+// ===== Excel 解析：两套模板自动识别（无需手动选择） =====
+// 1) 飞书导出歌单表：第2列歌名、第3列歌手、第4列语种、第5列曲风、第6列风格、第30列 sc价格（其余列忽略）
+// 2) 旧固定模板：A歌名 | B歌手 | C类型(曲风[；风格]) | D语言 | E SC | F风格(可选)
+// 两套都优先按「表头关键字」定位列，表头取名失败时才回退到该格式的固定列位。
+const FIELD_KEYWORDS = {
+    title: ['歌名', '歌曲名', '曲名', '标题', '歌曲'],
+    singer: ['歌手', '演唱者', '演唱', '音乐人', '艺人'],
+    lang: ['语种', '语言'],
+    genre: ['曲风', '类型', '分类'],
+    style: ['风格'],
+    sc: ['sc价格', 'sc价', 'sc', '价格', '金额', '付费']
+};
+const LEGACY_COLS = { title: 0, singer: 1, genre: 2, lang: 3, sc: 4, style: 5 };
+const FEISHU_COLS = { title: 1, singer: 2, lang: 3, genre: 4, style: 5, sc: 29 };
+
+function cellText(v) {
+    return v === null || v === undefined ? '' : String(v).trim();
+}
+
+// 按表头文字定位每列：完全相等得 2 分，包含关键字得 1 分，取最高分列
+function buildColumnMap(headerCells) {
+    const map = {};
+    Object.keys(FIELD_KEYWORDS).forEach(field => {
+        let bestIdx = -1, bestScore = 0;
+        headerCells.forEach((cell, idx) => {
+            const text = cellText(cell).toLowerCase();
+            if (!text) return;
+            let score = 0;
+            FIELD_KEYWORDS[field].forEach(kw => {
+                const k = kw.toLowerCase();
+                if (text === k) score = Math.max(score, 2);
+                else if (text.includes(k)) score = Math.max(score, 1);
+            });
+            if (score > bestScore) { bestScore = score; bestIdx = idx; }
+        });
+        if (bestIdx >= 0) map[field] = bestIdx;
+    });
+    return map;
+}
+
+// 在前 5 行里找关键字命中最多的一行作为表头（飞书导出可能带说明行）
+function findHeaderRow(raw) {
+    let best = { idx: 0, hits: 0, map: {} };
+    raw.slice(0, 5).forEach((row, idx) => {
+        const map = buildColumnMap(row || []);
+        const hits = Object.keys(map).length;
+        if (hits > best.hits) best = { idx, hits, map };
+    });
+    return best;
+}
+
+// 表头是否属于飞书导出格式：出现「语种/曲风/sc价格」或列数 ≥10
+function isFeishuHeader(headerCells) {
+    const texts = headerCells.map(cellText);
+    return texts.some(t => t.includes('语种') || t.includes('曲风') || t.toLowerCase().includes('sc价格'))
+        || headerCells.length >= 10;
+}
+
+// SC 金额：去掉 ¥ / 元 / 空格等，保留数字，去掉多余小数零（30.00 → 30）
+function normalizeSc(v) {
+    let s = cellText(v).replace(/[^\d.]/g, '');
+    if (!s) return '';
+    s = s.replace(/\.+$/, '');
+    if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+}
+
 fileInput.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -390,80 +462,67 @@ fileInput.onchange = async (e) => {
         showToast('仅支持 xlsx / xls 表格', 'error');
         return;
     }
+    detectInfo.innerText = '';
     try {
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf, {type:'array'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(sheet, {header:1});
-        // 表头校验：第一行应为表头，至少包含4列有效内容（歌名|歌手|类型|语言|SC）
-        const headerCells = (raw[0] || []).filter(c => c !== null && c !== undefined && String(c).trim() !== '').length;
-        if (headerCells < 4) {
-            showToast('表格格式有误：请确认第一行为表头且包含「歌名|歌手|类型|语言|SC」五列', 'error');
-            jsonBox.value = '';
-            pendingList = null;
-            pushBtn.disabled = true;
-            return;
+        // defval 保证空单元格不塌陷，稀疏列（如第 7-29 列多为空）仍按原索引取值
+        const raw = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', blankrows:false});
+        if (!raw.length) throw new Error('表格为空，没有可解析的内容');
+        const head = findHeaderRow(raw);
+        const headerCells = raw[head.idx] || [];
+        const colCount = headerCells.length;
+        const feishu = isFeishuHeader(headerCells);
+        const defaults = feishu ? FEISHU_COLS : LEGACY_COLS;
+        const cols = Object.assign({}, defaults, head.map);
+        if (head.hits < 3) {
+            throw new Error('未识别表格格式：表头需包含「歌名/歌手/语种(语言)/曲风(类型)/风格/sc价格」等列名');
         }
-        const rows = raw.slice(1); // 跳过固定表头行
-        if (rows.length === 0) {
-            showToast('表格无歌曲数据', 'error');
-            jsonBox.value = '';
-            pendingList = null;
-            pushBtn.disabled = true;
-            return;
-        }
+        const rows = raw.slice(head.idx + 1);
+        if (!rows.length) throw new Error('表格只有表头，没有歌曲数据');
         const list = [];
-        for(let i=0;i<rows.length;i++){
-            const r = rows[i];
-            const title = r[0]?.toString().trim() || '';
-            const singer = r[1]?.toString().trim() || '';
-            const typeRaw = r[2]?.toString().trim() || '';
-            const rawLang = r[3]?.toString().trim() || '';
-            const scRaw = (r[4]?.toString().trim() || '').replace(/[^\d.]/g, '');
-            if (!title || !singer) {
-                showToast(`第${i+2}行缺少歌名或歌手，无法转换`, 'error');
-                jsonBox.value = '';
-                pendingList = null;
-                pushBtn.disabled = true;
-                return;
-            }
-            let genre = '', style = '';
-            // 第六列(可选风格列)有值时优先作为style
-            const styleRaw = r[5]?.toString().trim() || '';
-            // 类型列取曲风部分（含分号时取第一部分）
-            if (typeRaw.includes('；')) {
-                genre = typeRaw.split('；')[0].trim();
-            } else if (typeRaw.includes(';')) {
-                genre = typeRaw.split(';')[0].trim();
-            } else {
-                genre = typeRaw;
-            }
-            // 风格：第六列优先，否则从类型列分号后取
-            if (styleRaw) {
-                style = styleRaw;
-            } else if (typeRaw.includes('；')) {
-                style = typeRaw.split('；')[1]?.trim() || '';
-            } else if (typeRaw.includes(';')) {
-                style = typeRaw.split(';')[1]?.trim() || '';
+        let skipped = 0;
+        for (let i = 0; i < rows.length; i++) {
+            const r = rows[i] || [];
+            const title = cellText(r[cols.title]);
+            const singer = cellText(r[cols.singer]);
+            if (!title && !singer) continue; // 整行空白直接忽略，不计入跳过
+            if (!title || !singer) { skipped++; continue; }
+            let genre = cellText(r[cols.genre]);
+            let style = cellText(r[cols.style]);
+            // 旧模板「类型」列可能写成「流行；甜歌」；飞书表曲风/风格分列，不触发此分支
+            if (!feishu && genre) {
+                const sep = genre.includes('；') ? '；' : (genre.includes(';') ? ';' : '');
+                if (sep) {
+                    const parts = genre.split(sep);
+                    genre = cellText(parts[0]);
+                    if (!style) style = cellText(parts[1] || '');
+                }
             }
             list.push({
                 genre,
-                lang: normalizeLang(rawLang),
+                lang: normalizeLang(cellText(r[cols.lang])),
                 singer,
                 style,
-                sc: scRaw,
+                sc: normalizeSc(r[cols.sc]),
                 title
             });
         }
+        if (!list.length) throw new Error(`没有有效歌曲（跳过 ${skipped} 行缺少歌名/歌手的数据）`);
         pendingList = list;
         jsonBox.value = JSON.stringify(list, null, 2);
         pushBtn.disabled = false;
+        const fmt = feishu ? '飞书导出格式' : '旧模板（6列）';
+        detectInfo.innerText = `已识别：${fmt} · ${colCount} 列 · 共 ${list.length} 首`
+            + (skipped ? ` · 跳过 ${skipped} 行（缺歌名/歌手）` : '');
         showToast(`表格转换完成，共 ${list.length} 首，可以提交`, 'success');
     } catch (err) {
         showToast('表格读取失败：' + err.message, 'error');
         jsonBox.value = '';
         pendingList = null;
         pushBtn.disabled = true;
+        detectInfo.innerText = '';
     }
 }
 
