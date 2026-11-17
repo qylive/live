@@ -731,14 +731,14 @@ var worker = null, workerOk = false, pending = null;
   if(location.protocol === "file:") return;
   try{
     var glue = "\nself.onmessage=function(e){var d=e.data;var r=generate(d.n,d.seed,d.budget,{});"
-      + "self.postMessage({ok:!!(r.reg&&r.unknown===0),reg:r.reg?Array.prototype.slice.call(r.reg):null,"
+      + "self.postMessage({id:d.id,ok:!!(r.reg&&r.unknown===0),reg:r.reg?Array.prototype.slice.call(r.reg):null,"
       + "cats:r.cats?Array.from(r.cats):null,ms:r.ms,tries:r.tries,unknown:r.unknown});};";
     var blob = new Blob([GEN_SRC + glue], {type:"text/javascript"});
     worker = new Worker(URL.createObjectURL(blob));
     worker.onmessage = function(e){
       var p = pending;
+      if(!p || (e.data && e.data.id !== p.id)) return;   // 不是当前这一局的回包 → 丢弃
       pending = null;
-      if(!p) return;
       if(e.data && e.data.ok) p.ok(e.data);
       else p.fail(new Error("生成未收敛"));
     };
@@ -916,6 +916,18 @@ function renderHUD(){
   timerEl.textContent = fmtTime(S.elapsed);
 }
 
+function startTimerSoon(gen){
+  var started = false;
+  function kick(){
+    if(started || S.ended || !S.reg || S.gen !== gen) return;
+    started = true;
+    startTimer();
+  }
+  if(window.requestAnimationFrame){
+    requestAnimationFrame(function(){ requestAnimationFrame(kick); });
+  }
+  setTimeout(kick, 320);          // 兜底：rAF 不触发时也要开始计时
+}
 function startTimer(){
   stopTimer();
   S.running = true;
@@ -1331,6 +1343,7 @@ function showLoading(){
   ovSpin.classList.remove("hide");
   ovMetrics.style.display = "none";
   ovActs.style.display = "none";
+  ovBtn.style.display = "";                // 清掉“生成失败”时留下的内联样式
   ovTitle.innerHTML = '正在铺色块<span class="dots"></span>';
   ovText.textContent = "每一局都要先确认「只有唯一解」，稍等一下下。";
 }
@@ -1404,10 +1417,12 @@ function validate(n, reg, catsArr){
   return true;
 }
 
+var REQ_SEQ = 0;
 function requestBoard(n){
   return new Promise(function(resolve, reject){
     var budget = n >= 18 ? 5500 : (n >= 15 ? 3200 : 1600);
     var seed = Math.floor(Math.random() * 2147483647);
+    var reqId = ++REQ_SEQ;
     var settled = false;
 
     function finish(data){
@@ -1439,6 +1454,7 @@ function requestBoard(n){
 
     if(workerOk && worker){
       pending = {
+        id: reqId,
         ok: finish,
         fail: function(e){
           workerOk = false;
@@ -1446,10 +1462,10 @@ function requestBoard(n){
           runSync();
         }
       };
-      worker.postMessage({n: n, seed: seed, budget: budget});
-      // 看门狗：worker 没回音就退回主线程
+      worker.postMessage({n: n, seed: seed, budget: budget, id: reqId});
+      // 看门狗：worker 没回音就退回主线程（只认自己这一局的请求）
       setTimeout(function(){
-        if(settled || !pending) return;
+        if(settled || !pending || pending.id !== reqId) return;
         pending = null;
         workerOk = false;
         runSync();
@@ -1494,6 +1510,10 @@ function startGame(n){
   S.reg = null; S.cats = null;
   S.endSeq = (S.endSeq || 0) + 1;          // 让上一局残留的“逐格揭晓”定时器失效
   S.endKind = "";
+  S.gen = (S.gen || 0) + 1;                // 生成代次：旧棋局迟到的结果一律丢弃
+  var gameGen = S.gen;
+  // 清掉上一局残留的拖拽/双击状态，避免新棋盘被“半截手势”误标
+  dragging = false; dragMode = null; lastIdx = -1; lastTapIdx = -1; lastTapT = 0;
 
   hideEndBar();
   stopTimer();
@@ -1510,8 +1530,10 @@ function startGame(n){
 
   var attempts = 0;
   function go(){
+    if(gameGen !== S.gen) return;            // 这局已经被新的一次开局取代
     attempts++;
     requestBoard(n).then(function(res){
+      if(gameGen !== S.gen) return;          // 生成期间切了难度/重开 → 丢弃旧结果
       var h = catHash(res.reg, new Set(res.cats));
       var recent = loadRecent();
       if(attempts < 3 && recent.indexOf(h) >= 0){ go(); return; }
@@ -1525,11 +1547,10 @@ function startGame(n){
       renderHUD();
       setBusy(false);
       hideOverlay();
-      // 等一帧再开始计时，确保棋盘已经可见
-      requestAnimationFrame(function(){
-        requestAnimationFrame(function(){ startTimer(); });
-      });
+      // 等一帧再开始计时，确保棋盘已经可见；rAF 被节流（后台标签/内嵌浏览器）时用定时器兜底
+      startTimerSoon(gameGen);
     }).catch(function(err){
+      if(gameGen !== S.gen) return;
       if(attempts < 3){ go(); }
       else {
         clearTimeout(loadTimer);
