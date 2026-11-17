@@ -47,10 +47,27 @@ h1 .paw{color:var(--gold)}
 .sub{margin:6px 0 0;font-size:clamp(11px,2.6vw,13px);color:var(--ink-3);letter-spacing:.04em}
 
 /* 难度 */
+.lvrow{display:flex;gap:8px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:14px auto 12px;max-width:620px}
 .levels{
   display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
-  margin:14px auto 12px;max-width:620px;
+  margin:0;max-width:620px;
 }
+.lvsel{
+  display:inline-flex;align-items:center;gap:6px;padding:0 12px;
+  border:1px solid var(--line);border-radius:999px;background:#fff;
+  box-shadow:var(--shadow-s);font-size:11px;font-weight:600;color:var(--ink-3);
+  white-space:nowrap;
+}
+.lvsel select{
+  appearance:none;-webkit-appearance:none;border:0;background:transparent;outline:none;
+  font:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;
+  padding:7px 16px 7px 0;text-align:center;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
+                    linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 7px) 53%, calc(100% - 3px) 53%;
+  background-size:4px 4px,4px 4px;background-repeat:no-repeat;
+}
+.lvsel select:disabled{opacity:.45;cursor:not-allowed}
 .lv{
   appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink-2);
   padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
@@ -127,13 +144,8 @@ h1 .paw{color:var(--gold)}
 }
 .x i:last-child{transform:rotate(-45deg)}
 .x.red i{background:#f4584c;box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
-.frame{
-  position:absolute;inset:6%;
-  border:2.5px solid var(--gold);border-radius:9px;
-  box-shadow:0 0 0 1.5px rgba(255,255,255,.72), 0 0 10px rgba(214,160,58,.55),
-              inset 0 0 0 999px rgba(233,183,86,.13);
-  pointer-events:none;
-}
+/* 固定标记：外扩微光（光晕画在格子外侧，不占色块面积），X 仍保持白色高对比 */
+.cell.fixed{position:relative;z-index:3}
 
 .cat-svg{width:82%;height:82%;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.18))}
 
@@ -186,6 +198,7 @@ h1 .paw{color:var(--gold)}
   body{padding:12px 10px 22px}
   header{margin-bottom:8px}
   .sub{display:none}
+  .lvrow{display:none}
   .levels{display:none}
   .hud{padding:7px 12px;border-radius:14px;max-width:none;margin:0 2px}
   .hud .item{font-size:11px;gap:5px}
@@ -221,7 +234,10 @@ h1 .paw{color:var(--gold)}
     <p class="sub">每种颜色一只猫 · 每行每列一只猫 · 猫的周围不能有猫</p>
   </header>
 
-  <div class="levels" id="levels"></div>
+  <div class="lvrow">
+    <div class="levels" id="levels"></div>
+    <label class="lvsel" for="selN">自定义 <select id="selN" aria-label="自定义棋盘边长"></select></label>
+  </div>
 
   <div class="hud">
     <div class="item"><span>剩余小猫</span><span class="val accent" id="left">—</span></div>
@@ -617,11 +633,14 @@ var PALETTE = ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d
                "#72d5be","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace",
                "#d779ce","#de91bb","#d06283","#eac5b8"];
 var LEVELS = [
-  {n:7,  name:"简单", hearts:2},
-  {n:10, name:"普通", hearts:2},
-  {n:15, name:"困难", hearts:2},
-  {n:20, name:"极限", hearts:3}
+  {n:7,  name:"简单"},
+  {n:10, name:"普通"},
+  {n:15, name:"困难"},
+  {n:20, name:"极限"}
 ];
+var N_MIN = 5, N_MAX = 20;
+/* 生命值规则：N >= 18 三颗心，否则两颗 */
+function heartsFor(n){ return n >= 18 ? 3 : 2; }
 
 var CAT_SVG = '<svg class="cat-svg" viewBox="0 0 100 100" aria-hidden="true">'
   + '<path d="M26 40 L20 13 L46 27 Z" fill="#f2b25c" stroke="#8a5a22" stroke-width="2.6" stroke-linejoin="round"/>'
@@ -726,7 +745,7 @@ var S = {
   revealed:null, wrong:null, marks:null,
   cells:[], bcls:[], colors:null,
   running:false, t0:0, elapsed:0, ended:false,
-  timerId:0, levelIdx:1
+  timerId:0
 };
 
 var board = document.getElementById("board");
@@ -749,6 +768,24 @@ var btnClear = document.getElementById("btnClear");
 var btnWipe = document.getElementById("btnWipe");
 var btnNew = document.getElementById("btnNew");
 var btnQuit = document.getElementById("btnQuit");
+var selN = document.getElementById("selN");
+
+/* 自定义 N 下拉：20 到 5 倒序 */
+(function buildNSelect(){
+  for(var v=N_MAX; v>=N_MIN; v--){
+    var op = document.createElement("option");
+    op.value = String(v);
+    op.textContent = v + " × " + v;
+    selN.appendChild(op);
+  }
+  selN.value = String(S.n);
+  selN.addEventListener("change", function(){
+    if(S.ended) return;
+    var v = parseInt(selN.value, 10);
+    if(!(v >= N_MIN && v <= N_MAX)) return;
+    startGame(v);
+  });
+})();
 
 /* ============ 难度条 ============ */
 function renderLevels(){
@@ -757,12 +794,14 @@ function renderLevels(){
     var b = document.createElement("button");
     b.className = "lv";
     b.type = "button";
-    b.setAttribute("aria-pressed", S.levelIdx===i ? "true" : "false");
+    b.setAttribute("aria-pressed", (S.n === lv.n && !isMobile()) ? "true" : "false");
     b.innerHTML = lv.name + "<small>" + lv.n + "×" + lv.n + "</small>";
     b.disabled = S.ended;
-    b.addEventListener("click", function(){ startGame(i); });
+    b.addEventListener("click", function(){ startGame(lv.n); });
     levelsEl.appendChild(b);
   });
+  selN.value = String(S.n);
+  selN.disabled = S.ended;
 }
 
 /* ============ HUD ============ */
@@ -800,11 +839,13 @@ function computeBoardSize(){
   var mobile = isMobile();
   var maxW = vw - (mobile ? 30 : 44);
   if(!mobile){
-    if(S.n >= 20) maxW = Math.min(maxW, 960);
+    if(S.n >= 18) maxW = Math.min(maxW, 960);
     else if(S.n >= 15) maxW = Math.min(maxW, 900);
     else maxW = Math.min(maxW, 760);
     // 小棋盘顺手把高度也压进一屏；大棋盘要保住格子大小，高了就整页滚动
     if(S.n < 15) maxW = Math.min(maxW, Math.max(300, window.innerHeight - 350));
+    // 格子别大到离谱：单格上限约 100px
+    maxW = Math.min(maxW, S.n * 100 + 40);
   }
   return Math.max(240, Math.floor(maxW));
 }
@@ -828,6 +869,10 @@ function buildBoard(){
   board.style.setProperty("--cell", cell.toFixed(1) + "px");
   var edgeW = n >= 15 ? Math.max(2, Math.round(cell * 0.045)) : 0;
   board.style.setProperty("--edge-w", edgeW + "px");
+  // 固定格微光随格子尺寸缩放：小格子用细一点的光晕，免得糊到邻居身上
+  S.glowRing = n >= 16 ? 2 : 1.5;
+  S.glowBlur = Math.round(Math.max(5, Math.min(14, cell * 0.15)));
+  S.glowSpread = cell < 50 ? 1 : 2;
   board.setAttribute("data-n", n);
 
   board.innerHTML = "";
@@ -871,9 +916,11 @@ function buildBoard(){
 function paintCell(i){
   var el = S.cells[i];
   if(!el) return;
+  var mkHere = S.marks ? S.marks.get(i) : null;
   var cls = "cell" + S.bcls[i];
   if(S.revealed.has(i)) cls += " cat";
   else if(S.wrong.has(i)) cls += " wrong";
+  else if(mkHere && mkHere.fixed) cls += " fixed";
   el.className = cls;
   if(S.revealed.has(i)){
     el.innerHTML = CAT_SVG;
@@ -881,20 +928,41 @@ function paintCell(i){
     el.innerHTML = '<span class="x red"><i></i><i></i></span>';
   }else if(S.marks.has(i)){
     var mk = S.marks.get(i);
-    el.innerHTML = '<span class="x"><i></i><i></i></span>' + (mk.fixed ? '<span class="frame"></span>' : "");
+    el.innerHTML = '<span class="x"><i></i><i></i></span>';
   }else{
     el.innerHTML = "";
   }
+  // 固定格的“外发光”直接画在格子本体上（格子内有 overflow:hidden，子元素的光晕会被裁掉）
+  if(mkHere && mkHere.fixed && !S.revealed.has(i) && !S.wrong.has(i)){
+    var sh = [];
+    if(/br/.test(S.bcls[i])) sh.push("inset calc(var(--edge-w,0px)*-1) 0 0 var(--edge)");
+    if(/bb/.test(S.bcls[i])) sh.push("inset 0 calc(var(--edge-w,0px)*-1) 0 var(--edge)");
+    sh.push("0 0 0 " + S.glowRing + "px rgba(232,178,62,.92)",
+            "0 0 " + S.glowBlur + "px " + S.glowSpread + "px rgba(240,190,80,.42)");
+    el.style.boxShadow = sh.join(",");
+  }else{
+    el.style.boxShadow = "";
+  }
 }
 
-/* ============ 配色：每档预设一套差异最大的颜色（常量），只按邻接关系分配 ============ */
+/* ============ 配色：每一档 N（5~20）各预设一套差异最大的颜色（常量），只按邻接关系分配 ============ */
 var PALETTE_SETS = {
-  7:  ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec"],
-  10: ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec","#cea55a","#d779ce","#c0ece0"],
-  15: ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec","#cea55a","#d779ce","#c0ece0",
-       "#cdce5a","#5a7ece","#5a9dce","#6ad296","#b3b0e8"],
-  20: ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec","#cea55a","#d779ce","#c0ece0",
-       "#cdce5a","#5a7ece","#5a9dce","#6ad296","#b3b0e8","#de91bb","#de9196","#c5dc89","#dcb489","#72d5be"]
+  5:  ["#68d062","#5ac4ce","#5e5ace","#d06283","#eac5b8"],
+  6:  ["#deecc0","#68d062","#5ac4ce","#5e5ace","#d06283","#eac5b8"],
+  7:  ["#deecc0","#68d062","#5ac4ce","#c0d1ec","#5e5ace","#d06283","#eac5b8"],
+  8:  ["#cea55a","#deecc0","#68d062","#5ac4ce","#c0d1ec","#5e5ace","#d06283","#eac5b8"],
+  9:  ["#cea55a","#deecc0","#68d062","#5ac4ce","#c0d1ec","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  10: ["#cea55a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  11: ["#cea55a","#cdce5a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  12: ["#cea55a","#cdce5a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5a7ece","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  13: ["#cea55a","#cdce5a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  14: ["#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  15: ["#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#d06283","#eac5b8"],
+  16: ["#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
+  17: ["#de9196","#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
+  18: ["#de9196","#cea55a","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
+  19: ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
+  20: ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296","#72d5be","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"]
 };
 var HEX_INDEX = (function(){
   var m = {};
@@ -1162,8 +1230,8 @@ btnQuit.addEventListener("click", function(){
 });
 function resetQuitBtn(){ btnQuit.classList.remove("confirm"); btnQuit.textContent = "认输"; }
 
-btnNew.addEventListener("click", function(){ startGame(S.levelIdx); });
-ovBtn.addEventListener("click", function(){ hideOverlay(); startGame(S.levelIdx); });
+btnNew.addEventListener("click", function(){ startGame(S.n); });
+ovBtn.addEventListener("click", function(){ hideOverlay(); startGame(S.n); });
 
 /* ============ 遮罩 ============ */
 function showLoading(){
@@ -1244,7 +1312,7 @@ function validate(n, reg, catsArr){
 
 function requestBoard(n){
   return new Promise(function(resolve, reject){
-    var budget = n >= 20 ? 5500 : (n >= 15 ? 3200 : 1600);
+    var budget = n >= 18 ? 5500 : (n >= 15 ? 3200 : 1600);
     var seed = Math.floor(Math.random() * 2147483647);
     var settled = false;
 
@@ -1316,13 +1384,13 @@ function catHash(reg, cats){
   return s;
 }
 
-function startGame(levelIdx){
-  S.levelIdx = levelIdx;
-  var lv = LEVELS[levelIdx];
+function startGame(n){
   var mobile = isMobile();
-  var n = mobile ? 10 : lv.n;
-  S.hearts = mobile ? LEVELS[1].hearts : lv.hearts;
+  var want = Math.round(n);
+  if(!(want >= N_MIN && want <= N_MAX)) want = 10;
+  n = mobile ? 10 : want;                 // 移动端固定 10×10
   S.n = n;
+  S.hearts = heartsFor(n);
   S.lives = S.hearts;
   S.revealed = new Set();
   S.wrong = new Set();
@@ -1338,9 +1406,9 @@ function startGame(levelIdx){
   setBusy(true);
   board.innerHTML = "";
   rnums.innerHTML = ""; cnums.innerHTML = "";
-  // 小棋盘生成很快，遮罩延迟 150ms 才出现，避免闪一下；大棋盘会阻塞，先亮遮罩
+  // 小棋盘生成很快，遮罩延迟 150ms 才出现，避免闪一下；13 格以上会明显变慢，先亮遮罩
   var loadTimer = 0;
-  if(n >= 15) showLoading();
+  if(n >= 13) showLoading();
   else loadTimer = setTimeout(showLoading, 150);
 
   var attempts = 0;
@@ -1465,6 +1533,22 @@ function runSelfTest(){
 
   async function go(){
     var n = S.n;
+
+    // 0 难度表 / 生命规则 / 自定义下拉
+    var palOK = true;
+    for(var nn=N_MIN; nn<=N_MAX; nn++){
+      var set0 = PALETTE_SETS[nn];
+      if(!set0 || set0.length !== nn) palOK = false;
+    }
+    check("配色常量覆盖 " + N_MIN + "~" + N_MAX + " 每一档且颜色数 = N", palOK);
+    check("生命值规则：N≥18 → 3 颗，否则 2 颗",
+          heartsFor(18) === 3 && heartsFor(19) === 3 && heartsFor(20) === 3 &&
+          heartsFor(17) === 2 && heartsFor(5) === 2);
+    check("自定义下拉 20→5 倒序共 16 项",
+          selN.options.length === (N_MAX - N_MIN + 1) &&
+          selN.options[0].value === String(N_MAX) &&
+          selN.options[selN.options.length-1].value === String(N_MIN));
+
     // 1 单击标叉
     var a = 0;
     while(S.cats.has(a)) a++;
@@ -1520,6 +1604,9 @@ function runSelfTest(){
     _tap(m1); await _sleep(60);
     btnFix.click(); await _sleep(60);
     check("固定标记 → 加金框", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
+    var el1 = S.cells[m1];
+    check("固定样式 = 外扩微光（发光在格子外侧，颜色面积不被占）",
+          /fixed/.test(el1.className) && /232, ?178, ?62/.test(el1.style.boxShadow) && !el1.querySelector(".frame"));
     btnClear.click(); await _sleep(60);
     check("清除标记 → 固定格保留", S.marks.has(m1));
     btnUnfix.click(); await _sleep(60);
@@ -1546,6 +1633,7 @@ function runSelfTest(){
     check("认输二次点击 → 对局结束", S.ended === true);
     check("结束时揭晓全部猫位", S.revealed.size === n);
     check("结束后仅剩重开可点", btnNew.disabled === false && btnFix.disabled === true);
+    check("结束后自定义下拉禁用", selN.disabled === true);
     flush();
   }
 }
@@ -1556,15 +1644,15 @@ if(/[?&]selftest=1/.test(location.search)) setTimeout(runSelfTest, 300);
 renderLevels();
 renderHUD();
 (function(){
-  var startIdx = 1;
+  var want = 10;
   try{
     var m = /[?&]n=(\d+)/.exec(location.search);
     if(m){
-      var want = parseInt(m[1], 10);
-      for(var i=0;i<LEVELS.length;i++) if(LEVELS[i].n === want) startIdx = i;
+      var v = parseInt(m[1], 10);
+      if(v >= N_MIN && v <= N_MAX) want = v;
     }
   }catch(e){}
-  startGame(startIdx);
+  startGame(want);
 })();
 </script>
 </body>
