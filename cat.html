@@ -256,8 +256,8 @@ h1 .paw{color:var(--gold)}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（金框）。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（金框）。</span>
   </p>
 </div>
 
@@ -993,13 +993,52 @@ function applyMark(i, mode){
   }
 }
 
+/* 规则必然排除的格子：同行 + 同列 + 同色块 + 周围 8 格（不含猫本身） */
+function exclusionCells(ci){
+  var n = S.n, reg = S.reg, r0 = Math.floor(ci/n), c0 = ci % n, k0 = reg[ci];
+  var out = [], seen = {};
+  function push(i){
+    if(i === ci || seen[i]) return;
+    seen[i] = 1; out.push(i);
+  }
+  var c, r, dr, dc;
+  for(c=0;c<n;c++) push(r0*n + c);
+  for(r=0;r<n;r++) push(r*n + c0);
+  for(var t=0;t<n*n;t++) if(reg[t] === k0) push(t);
+  for(dr=-1;dr<=1;dr++) for(dc=-1;dc<=1;dc++){
+    if(!dr && !dc) continue;
+    var rr = r0 + dr, cc = c0 + dc;
+    if(rr >= 0 && rr < n && cc >= 0 && cc < n) push(rr*n + cc);
+  }
+  return out;
+}
+
+/* 翻出猫后按规则自动打叉并固定 */
+function autoExclude(ci){
+  var list = exclusionCells(ci), cnt = 0;
+  for(var q=0;q<list.length;q++){
+    var i = list[q];
+    if(S.revealed.has(i) || S.wrong.has(i)) continue;      // 已翻猫 / 红叉锁定：不动
+    var mk = S.marks.get(i);
+    if(mk && mk.fixed && !mk.auto) continue;               // 玩家手动固定的：不动
+    if(mk && mk.fixed && mk.auto){ cnt++; continue; }
+    S.marks.set(i, {fixed:true, auto:true});
+    paintCell(i);
+    cnt++;
+  }
+  return cnt;
+}
+
 function attemptCat(i){
   if(S.ended) return;
   if(locked(i)) return;
+  var mk0 = S.marks.get(i);
+  if(mk0 && mk0.auto) return;          // 规则已证明该格无猫，双击无反应（不扣心）
   if(S.cats.has(i)){
     S.marks.delete(i);
     S.revealed.add(i);
     paintCell(i);
+    autoExclude(i);
     renderHUD();
     if(S.revealed.size === S.n) endGame("win");
   }else{
@@ -1024,7 +1063,7 @@ board.addEventListener("contextmenu", function(e){
   if(i < 0) return;
   var mk = S.marks.get(i);
   if(mk && mk.fixed){
-    S.marks.set(i, {fixed:false});
+    S.marks.set(i, {fixed:false, auto:false});
     paintCell(i);
   }
 });
@@ -1082,7 +1121,7 @@ btnFix.addEventListener("click", function(){
 btnUnfix.addEventListener("click", function(){
   if(S.ended) return;
   S.marks.forEach(function(mk, i){
-    if(mk.fixed){ mk.fixed = false; paintCell(i); }
+    if(mk.fixed){ mk.fixed = false; mk.auto = false; paintCell(i); }
   });
 });
 
@@ -1449,8 +1488,24 @@ function runSelfTest(){
     await _dbl(cat); await _sleep(80);
     check("双击猫位 → 翻出（剩余 -1）", S.revealed.has(cat) && (n - S.revealed.size) === n - 1);
 
+    // 4b 翻猫后按规则自动排除并固定
+    var expList = exclusionCells(cat);
+    var allMarked = true, allFixed = true, noCat = true;
+    for(var q1=0;q1<expList.length;q1++){
+      var mk1 = S.marks.get(expList[q1]);
+      if(!mk1) allMarked = false;
+      else if(!mk1.fixed || !mk1.auto) allFixed = false;
+      if(S.revealed.has(expList[q1])) noCat = false;
+    }
+    check("翻出猫 → 同行/同列/同色块/周围8格 自动打叉（" + expList.length + " 格）", allMarked);
+    check("自动标记全部自动固定（金框，status=auto）", allFixed && allMarked);
+    check("自动排除不会误伤已翻出的猫", noCat);
+    var autoIdx = expList[0], livesA = S.lives;
+    await _dbl(autoIdx); await _sleep(60);
+    check("双击已自动排除的格 → 无反应且不扣心", S.lives === livesA && !S.wrong.has(autoIdx));
+
     // 5 双击错误格 → 红叉 + 扣心 + 锁定
-    var w = 0; while(S.cats.has(w) || S.revealed.has(w) || S.wrong.has(w)) w++;
+    var w = 0; while(S.cats.has(w) || S.revealed.has(w) || S.wrong.has(w) || S.marks.has(w)) w++;
     var lives0 = S.lives;
     await _sleep(400);
     await _dbl(w); await _sleep(80);
@@ -1461,7 +1516,7 @@ function runSelfTest(){
     check("红叉格已锁定，点击无反应", S.marks.size === size0 && S.wrong.has(w));
 
     // 6 固定 → 清除保留 → 清空清掉
-    var m1 = 5; while(S.cats.has(m1) || S.revealed.has(m1) || S.wrong.has(m1)) m1++;
+    var m1 = 5; while(S.cats.has(m1) || S.revealed.has(m1) || S.wrong.has(m1) || S.marks.has(m1)) m1++;
     _tap(m1); await _sleep(60);
     btnFix.click(); await _sleep(60);
     check("固定标记 → 加金框", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
