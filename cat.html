@@ -168,9 +168,8 @@ h1 .paw{color:var(--gold)}
 }
 .x i:last-child{transform:rotate(-45deg)}
 .x.red i{background:#f4584c;box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
-/* 固定标记：整格纯黑（不再用边框/微光；预设配色里不含纯黑，所以黑色 = 已确认无猫） */
-.cell.fixed{background:#000}
-.cell.fixed .x i{background:#fff;box-shadow:none}
+/* 固定标记：色块保持原色，只把 X 由白变近黑（一眼区分"固定"与"临时标记"，又不吃掉颜色信息） */
+.cell.fixed .x i{background:#111;box-shadow:none}
 
 .cat-svg{width:82%;height:82%;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.18))}
 
@@ -321,8 +320,8 @@ body.has-endbar{padding-bottom:8px}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
   </p>
 </div>
 
@@ -1030,15 +1029,9 @@ function paintCell(i){
   }else{
     el.innerHTML = "";
   }
-  // 固定格的“外发光”直接画在格子本体上（格子内有 overflow:hidden，子元素的光晕会被裁掉）
-  var isFixed = !!(mkHere && mkHere.fixed && !S.revealed.has(i) && !S.wrong.has(i));
-  // 固定 = 整格纯黑，不带任何边框/光晕；解固时把原色写回来
-  el.style.background = isFixed ? "#000" : S.colors[S.reg[i]];
-  if(isFixed){
-    el.style.boxShadow = "none";
-  }else{
-    el.style.boxShadow = "";
-  }
+  // 固定只改 X 的颜色（由 CSS .cell.fixed 负责），色块始终是它自己的颜色
+  el.style.background = S.colors[S.reg[i]];
+  el.style.boxShadow = "";
 }
 
 /* ============ 配色：每一档 N（5~20）各预设一套差异最大的颜色（常量），只按邻接关系分配 ============ */
@@ -1719,7 +1712,7 @@ function runSelfTest(){
         if(S.revealed.has(expList[q1])) noCat = false;
       }
       check("N≥18 翻出猫 → 同行/同列/同色块/周围8格 自动打叉（" + expList.length + " 格）", allMarked);
-      check("自动标记全部自动固定（纯黑，status=auto）", allFixed && allMarked);
+      check("自动标记全部自动固定（X 变黑，status=auto）", allFixed && allMarked);
       check("自动排除不会误伤已翻出的猫", noCat);
       var autoIdx = expList[0], livesA = S.lives;
       await _dbl(autoIdx); await _sleep(60);
@@ -1753,19 +1746,24 @@ function runSelfTest(){
     var m1 = 5; while(S.cats.has(m1) || S.revealed.has(m1) || S.wrong.has(m1) || S.marks.has(m1)) m1++;
     _tap(m1); await _sleep(60);
     btnFix.click(); await _sleep(60);
-    check("固定标记 → 变纯黑", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
+    check("固定标记 → 该格固定", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
     var el1 = S.cells[m1];
-    check("固定样式 = 整格纯黑且无边框/光晕 [" + el1.className + " | " + el1.style.background + " | " + el1.style.boxShadow + "]",
-          /fixed/.test(el1.className) &&
-          /rgb\(0, 0, 0\)/.test(el1.style.background) && el1.style.boxShadow === "none");
     var elTmp = document.createElement("div");
     elTmp.style.background = S.colors[S.reg[m1]];
     var origRGB = elTmp.style.background;
+    var barFixed = el1.querySelector(".x i");
+    check("固定样式 = 色块保持原色、只有 X 变近黑 [" + el1.style.background + " | " + getComputedStyle(barFixed).backgroundColor + "]",
+          /fixed/.test(el1.className) &&
+          el1.style.background === origRGB &&
+          getComputedStyle(barFixed).backgroundColor === "rgb(17, 17, 17)");
     btnClear.click(); await _sleep(60);
     check("清除标记 → 固定格保留", S.marks.has(m1));
     btnUnfix.click(); await _sleep(60);
-    check("解除固定 → 恢复原色 [" + el1.style.background + " = " + origRGB + "]",
-          !!(S.marks.get(m1) && !S.marks.get(m1).fixed) && el1.style.background === origRGB);
+    var barOpen = el1.querySelector(".x i");
+    check("解除固定 → X 恢复白色，色块始终原色 [" + getComputedStyle(barOpen).backgroundColor + " | " + el1.style.background + "]",
+          !!(S.marks.get(m1) && !S.marks.get(m1).fixed) &&
+          getComputedStyle(barOpen).backgroundColor === "rgb(255, 255, 255)" &&
+          el1.style.background === origRGB);
 
     // 6b 翻猫自动固定的格不可解除（仅大盘会出现自动固定）
     var autoBefore = 0;
