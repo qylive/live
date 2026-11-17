@@ -52,22 +52,46 @@ h1 .paw{color:var(--gold)}
   display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
   margin:0;max-width:620px;
 }
+/* 自定义难度：自绘下拉（不用浏览器原生 select，原生弹层样式各端不一致也不好看） */
 .lvsel{
-  display:inline-flex;align-items:center;gap:6px;padding:0 12px;
+  position:relative;display:inline-flex;align-items:center;gap:4px;padding:0 6px 0 12px;
   border:1px solid var(--line);border-radius:999px;background:#fff;
   box-shadow:var(--shadow-s);font-size:11px;font-weight:600;color:var(--ink-3);
   white-space:nowrap;
 }
-.lvsel select{
+.lvsellab{letter-spacing:.02em}
+.ddbtn{
   appearance:none;-webkit-appearance:none;border:0;background:transparent;outline:none;
-  font:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;
-  padding:7px 16px 7px 0;text-align:center;
-  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
-                    linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
-  background-position:calc(100% - 7px) 53%, calc(100% - 3px) 53%;
-  background-size:4px 4px,4px 4px;background-repeat:no-repeat;
+  display:inline-flex;align-items:center;gap:6px;padding:7px 5px 7px 4px;border-radius:999px;
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;
+  transition:background .16s;
 }
-.lvsel select:disabled{opacity:.45;cursor:not-allowed}
+.ddbtn .v{font-variant-numeric:tabular-nums}
+.ddbtn:hover:not(:disabled){background:rgba(27,26,46,.055)}
+.ddbtn:disabled{opacity:.45;cursor:not-allowed}
+.ddcaret{width:9px;height:6px;flex:0 0 auto;transition:transform .2s}
+.ddcaret path{fill:none;stroke:var(--ink-3);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ddbtn[aria-expanded="true"] .ddcaret{transform:rotate(180deg)}
+.ddpop{
+  position:absolute;top:calc(100% + 8px);right:0;z-index:40;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px;
+  min-width:246px;max-height:254px;overflow-y:auto;overscroll-behavior:contain;
+  background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 20px 44px -20px rgba(24,22,45,.36),0 2px 8px rgba(24,22,45,.06);
+  opacity:0;visibility:hidden;transform:translateY(-6px) scale(.985);
+  transition:opacity .16s,transform .16s,visibility .16s;
+}
+.ddpop.on{opacity:1;visibility:visible;transform:none}
+.ddpop::-webkit-scrollbar{width:6px}
+.ddpop::-webkit-scrollbar-thumb{background:#dcd9e8;border-radius:99px}
+.ddpop::-webkit-scrollbar-track{background:transparent}
+.dditem{
+  appearance:none;border:0;background:#f6f5fa;color:var(--ink-2);font-family:inherit;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+  padding:8px 0;border-radius:10px;cursor:pointer;letter-spacing:.01em;transition:background .14s,color .14s;
+}
+.dditem:hover{background:#ebe8f5;color:var(--ink)}
+.dditem[aria-selected="true"]{background:var(--ink);color:#fff}
 .lv{
   appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink-2);
   padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
@@ -254,7 +278,14 @@ body.has-endbar{padding-bottom:8px}
 
   <div class="lvrow">
     <div class="levels" id="levels"></div>
-    <label class="lvsel" for="selN">自定义 <select id="selN" aria-label="自定义棋盘边长"></select></label>
+    <div class="lvsel" id="lvsel">
+      <span class="lvsellab">自定义</span>
+      <button type="button" class="ddbtn" id="ddBtn" aria-haspopup="listbox" aria-expanded="false" aria-label="自定义棋盘边长">
+        <span class="v" id="ddVal">10 × 10</span>
+        <svg class="ddcaret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg>
+      </button>
+      <div class="ddpop" id="ddPop" role="listbox" aria-label="棋盘边长"></div>
+    </div>
   </div>
 
   <div class="hud">
@@ -802,24 +833,54 @@ var btnClear = document.getElementById("btnClear");
 var btnWipe = document.getElementById("btnWipe");
 var btnNew = document.getElementById("btnNew");
 var btnQuit = document.getElementById("btnQuit");
-var selN = document.getElementById("selN");
+var lvsel = document.getElementById("lvsel");
+var ddBtn = document.getElementById("ddBtn");
+var ddVal = document.getElementById("ddVal");
+var ddPop = document.getElementById("ddPop");
 
-/* 自定义 N 下拉：20 到 5 倒序 */
-(function buildNSelect(){
+/* 自定义 N 下拉：20 到 5 倒序，自绘面板 */
+(function buildNDropdown(){
   for(var v=N_MAX; v>=N_MIN; v--){
-    var op = document.createElement("option");
-    op.value = String(v);
-    op.textContent = v + " × " + v;
-    selN.appendChild(op);
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "dditem";
+    b.setAttribute("role", "option");
+    b.setAttribute("aria-selected", "false");
+    b.setAttribute("data-n", String(v));
+    b.textContent = v + "×" + v;
+    b.addEventListener("click", function(){
+      var picked = parseInt(this.getAttribute("data-n"), 10);
+      closeNDropdown();
+      if(S.ended) return;
+      if(!(picked >= N_MIN && picked <= N_MAX)) return;
+      startGame(picked);
+    });
+    ddPop.appendChild(b);
   }
-  selN.value = String(S.n);
-  selN.addEventListener("change", function(){
+  ddBtn.addEventListener("click", function(e){
+    e.preventDefault();
+    e.stopPropagation();
     if(S.ended) return;
-    var v = parseInt(selN.value, 10);
-    if(!(v >= N_MIN && v <= N_MAX)) return;
-    startGame(v);
+    if(ddPop.classList.contains("on")) closeNDropdown(); else openNDropdown();
+  });
+  ddPop.addEventListener("click", function(e){ e.stopPropagation(); });
+  document.addEventListener("pointerdown", function(e){
+    if(!lvsel.contains(e.target)) closeNDropdown();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" || e.key === "Esc") closeNDropdown();
   });
 })();
+function openNDropdown(){
+  ddPop.classList.add("on");
+  ddBtn.setAttribute("aria-expanded", "true");
+  var cur = ddPop.querySelector('[aria-selected="true"]');
+  if(cur && cur.scrollIntoView){ try { cur.scrollIntoView({block:"nearest"}); } catch(err){} }
+}
+function closeNDropdown(){
+  ddPop.classList.remove("on");
+  ddBtn.setAttribute("aria-expanded", "false");
+}
 
 /* ============ 难度条 ============ */
 function renderLevels(){
@@ -834,8 +895,13 @@ function renderLevels(){
     b.addEventListener("click", function(){ startGame(lv.n); });
     levelsEl.appendChild(b);
   });
-  selN.value = String(S.n);
-  selN.disabled = S.ended;
+  ddVal.textContent = S.n + " × " + S.n;
+  ddBtn.disabled = S.ended;
+  if(S.ended) closeNDropdown();
+  for(var k=0; k<ddPop.children.length; k++){
+    var op = ddPop.children[k];
+    op.setAttribute("aria-selected", op.getAttribute("data-n") === String(S.n) ? "true" : "false");
+  }
 }
 
 /* ============ HUD ============ */
@@ -1606,10 +1672,16 @@ function runSelfTest(){
     check("生命值规则：N≥18 → 3 颗，否则 2 颗",
           heartsFor(18) === 3 && heartsFor(19) === 3 && heartsFor(20) === 3 &&
           heartsFor(17) === 2 && heartsFor(5) === 2);
-    check("自定义下拉 20→5 倒序共 16 项",
-          selN.options.length === (N_MAX - N_MIN + 1) &&
-          selN.options[0].value === String(N_MAX) &&
-          selN.options[selN.options.length-1].value === String(N_MIN));
+    check("自定义下拉 20→5 倒序共 16 项（自绘面板，非原生 select）",
+          document.getElementById("selN") === null &&
+          ddPop.children.length === (N_MAX - N_MIN + 1) &&
+          ddPop.children[0].getAttribute("data-n") === String(N_MAX) &&
+          ddPop.children[ddPop.children.length-1].getAttribute("data-n") === String(N_MIN));
+    ddBtn.click();
+    check("点「自定义」弹出面板并高亮当前档", ddPop.classList.contains("on") &&
+          ddPop.querySelector('[aria-selected="true"]').getAttribute("data-n") === String(S.n));
+    document.dispatchEvent(new PointerEvent("pointerdown", {bubbles:true}));
+    check("点击面板外 → 面板收起", !ddPop.classList.contains("on"));
 
     // 1 单击标叉
     var a = 0;
@@ -1717,7 +1789,7 @@ function runSelfTest(){
     await _sleep(1300 + n * 30);                 // 等逐格揭晓 + 结算面板弹出
     check("结束时逐格揭晓全部猫位", S.revealed.size === n);
     check("结束后仅剩重开可点", btnNew.disabled === false && btnFix.disabled === true);
-    check("结束后自定义下拉禁用", selN.disabled === true);
+    check("结束后自定义下拉禁用", ddBtn.disabled === true && !ddPop.classList.contains("on"));
     check("结算面板带「看棋盘上的猫」按钮（不再挡住猫位）",
           overlay.classList.contains("on") && ovActs.style.display === "flex");
     ovPeek.click(); await _sleep(150);
