@@ -144,8 +144,9 @@ h1 .paw{color:var(--gold)}
 }
 .x i:last-child{transform:rotate(-45deg)}
 .x.red i{background:#f4584c;box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
-/* 固定标记：外扩微光（光晕画在格子外侧，不占色块面积），X 仍保持白色高对比 */
-.cell.fixed{position:relative;z-index:3}
+/* 固定标记：整格纯黑（不再用边框/微光；预设配色里不含纯黑，所以黑色 = 已确认无猫） */
+.cell.fixed{background:#000}
+.cell.fixed .x i{background:#fff;box-shadow:none}
 
 .cat-svg{width:82%;height:82%;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.18))}
 
@@ -272,8 +273,8 @@ h1 .paw{color:var(--gold)}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（金框）。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（金框）。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）。</span>
   </p>
 </div>
 
@@ -812,7 +813,8 @@ function renderHUD(){
   for(var i=0;i<S.hearts;i++){
     var span = document.createElement("span");
     span.innerHTML = HEART_SVG;
-    span.firstChild.className = "heart" + (i < S.lives ? "" : " lost");
+    // 注意：SVG 元素的 className 是只读的 SVGAnimatedString，赋值会被静默忽略（心不减的 BUG 就出在这）
+    span.firstChild.setAttribute("class", "heart" + (i < S.lives ? "" : " lost"));
     heartsEl.appendChild(span.firstChild);
   }
   timerEl.textContent = fmtTime(S.elapsed);
@@ -869,10 +871,6 @@ function buildBoard(){
   board.style.setProperty("--cell", cell.toFixed(1) + "px");
   var edgeW = n >= 15 ? Math.max(2, Math.round(cell * 0.045)) : 0;
   board.style.setProperty("--edge-w", edgeW + "px");
-  // 固定格微光随格子尺寸缩放：小格子用细一点的光晕，免得糊到邻居身上
-  S.glowRing = n >= 16 ? 2 : 1.5;
-  S.glowBlur = Math.round(Math.max(5, Math.min(14, cell * 0.15)));
-  S.glowSpread = cell < 50 ? 1 : 2;
   board.setAttribute("data-n", n);
 
   board.innerHTML = "";
@@ -933,13 +931,11 @@ function paintCell(i){
     el.innerHTML = "";
   }
   // 固定格的“外发光”直接画在格子本体上（格子内有 overflow:hidden，子元素的光晕会被裁掉）
-  if(mkHere && mkHere.fixed && !S.revealed.has(i) && !S.wrong.has(i)){
-    var sh = [];
-    if(/br/.test(S.bcls[i])) sh.push("inset calc(var(--edge-w,0px)*-1) 0 0 var(--edge)");
-    if(/bb/.test(S.bcls[i])) sh.push("inset 0 calc(var(--edge-w,0px)*-1) 0 var(--edge)");
-    sh.push("0 0 0 " + S.glowRing + "px rgba(232,178,62,.92)",
-            "0 0 " + S.glowBlur + "px " + S.glowSpread + "px rgba(240,190,80,.42)");
-    el.style.boxShadow = sh.join(",");
+  var isFixed = !!(mkHere && mkHere.fixed && !S.revealed.has(i) && !S.wrong.has(i));
+  // 固定 = 整格纯黑，不带任何边框/光晕；解固时把原色写回来
+  el.style.background = isFixed ? "#000" : S.colors[S.reg[i]];
+  if(isFixed){
+    el.style.boxShadow = "none";
   }else{
     el.style.boxShadow = "";
   }
@@ -1130,7 +1126,7 @@ board.addEventListener("contextmenu", function(e){
   var i = idxFromPoint(e.clientX, e.clientY);
   if(i < 0) return;
   var mk = S.marks.get(i);
-  if(mk && mk.fixed){
+  if(mk && mk.fixed && !mk.auto){        // 翻猫自动固定的格不能被右键解除
     S.marks.set(i, {fixed:false, auto:false});
     paintCell(i);
   }
@@ -1189,7 +1185,7 @@ btnFix.addEventListener("click", function(){
 btnUnfix.addEventListener("click", function(){
   if(S.ended) return;
   S.marks.forEach(function(mk, i){
-    if(mk.fixed){ mk.fixed = false; mk.auto = false; paintCell(i); }
+    if(mk.fixed && !mk.auto){ mk.fixed = false; mk.auto = false; paintCell(i); }   // 自动固定的不可解
   });
 });
 
@@ -1211,7 +1207,8 @@ btnWipe.addEventListener("click", function(){
   }
   clearTimeout(wipeArmed); wipeArmed = 0; resetWipeBtn();
   var list = [];
-  S.marks.forEach(function(mk, i){ list.push(i); });
+  // 翻猫自动固定的格属于“规则已证明无猫”，清空也不动它们（只有重开一局才会消失）
+  S.marks.forEach(function(mk, i){ if(!mk.auto) list.push(i); });
   list.forEach(function(i){ S.marks.delete(i); paintCell(i); });
 });
 function resetWipeBtn(){ btnWipe.classList.remove("confirm"); btnWipe.textContent = "清空标记"; }
@@ -1541,6 +1538,17 @@ function runSelfTest(){
       if(!set0 || set0.length !== nn) palOK = false;
     }
     check("配色常量覆盖 " + N_MIN + "~" + N_MAX + " 每一档且颜色数 = N", palOK);
+    // 固定格是纯黑，配色里不能出现同档深色，否则“黑=已固定”的语义会被撞色
+    var darkMin = 255, darkHex = "";
+    for(var nn2=N_MIN; nn2<=N_MAX; nn2++){
+      var set1 = PALETTE_SETS[nn2] || [];
+      for(var q2=0;q2<set1.length;q2++){
+        var hx = set1[q2].replace("#","");
+        var br = (parseInt(hx.substr(0,2),16) + parseInt(hx.substr(2,2),16) + parseInt(hx.substr(4,2),16)) / 3;
+        if(br < darkMin){ darkMin = br; darkHex = set1[q2]; }
+      }
+    }
+    check("预设配色不含纯黑/深色（最暗 " + darkHex + " 亮度 " + Math.round(darkMin) + "）", darkMin >= 100);
     check("生命值规则：N≥18 → 3 颗，否则 2 颗",
           heartsFor(18) === 3 && heartsFor(19) === 3 && heartsFor(20) === 3 &&
           heartsFor(17) === 2 && heartsFor(5) === 2);
@@ -1582,7 +1590,7 @@ function runSelfTest(){
       if(S.revealed.has(expList[q1])) noCat = false;
     }
     check("翻出猫 → 同行/同列/同色块/周围8格 自动打叉（" + expList.length + " 格）", allMarked);
-    check("自动标记全部自动固定（金框，status=auto）", allFixed && allMarked);
+    check("自动标记全部自动固定（纯黑，status=auto）", allFixed && allMarked);
     check("自动排除不会误伤已翻出的猫", noCat);
     var autoIdx = expList[0], livesA = S.lives;
     await _dbl(autoIdx); await _sleep(60);
@@ -1599,28 +1607,49 @@ function runSelfTest(){
     _tap(w); await _sleep(60);
     check("红叉格已锁定，点击无反应", S.marks.size === size0 && S.wrong.has(w));
 
-    // 6 固定 → 清除保留 → 清空清掉
+    // 5b 心形 HUD 与扣心同步（回归：SVG className 只读，曾经心形永远画成满血）
+    var lostEls = heartsEl.querySelectorAll(".heart.lost").length;
+    check("红叉后顶栏心形同步变灰（" + lostEls + " / " + S.hearts + "）",
+          lostEls === (S.hearts - S.lives) && S.lives === lives0 - 1);
+
+    // 6 固定 → 变纯黑 → 清除保留 → 解固恢复原色
     var m1 = 5; while(S.cats.has(m1) || S.revealed.has(m1) || S.wrong.has(m1) || S.marks.has(m1)) m1++;
     _tap(m1); await _sleep(60);
     btnFix.click(); await _sleep(60);
-    check("固定标记 → 加金框", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
+    check("固定标记 → 变纯黑", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
     var el1 = S.cells[m1];
-    check("固定样式 = 外扩微光（发光在格子外侧，颜色面积不被占）",
-          /fixed/.test(el1.className) && /232, ?178, ?62/.test(el1.style.boxShadow) && !el1.querySelector(".frame"));
+    check("固定样式 = 整格纯黑且无边框/光晕 [" + el1.className + " | " + el1.style.background + " | " + el1.style.boxShadow + "]",
+          /fixed/.test(el1.className) &&
+          /rgb\(0, 0, 0\)/.test(el1.style.background) && el1.style.boxShadow === "none");
+    var elTmp = document.createElement("div");
+    elTmp.style.background = S.colors[S.reg[m1]];
+    var origRGB = elTmp.style.background;
     btnClear.click(); await _sleep(60);
     check("清除标记 → 固定格保留", S.marks.has(m1));
     btnUnfix.click(); await _sleep(60);
-    check("解除固定 → 金框取消", !!(S.marks.get(m1) && !S.marks.get(m1).fixed));
+    check("解除固定 → 恢复原色 [" + el1.style.background + " = " + origRGB + "]",
+          !!(S.marks.get(m1) && !S.marks.get(m1).fixed) && el1.style.background === origRGB);
 
-    // 7 右键解固
+    // 6b 翻猫自动固定的格不可解除
+    var autoBefore = 0;
+    S.marks.forEach(function(mk){ if(mk.auto) autoBefore++; });
+    btnUnfix.click(); await _sleep(60);
+    var autoStill = 0;
+    S.marks.forEach(function(mk){ if(mk.auto && mk.fixed) autoStill++; });
+    check("解除固定 → 自动固定的 " + autoBefore + " 格不受影响", autoBefore > 0 && autoStill === autoBefore);
+    _rightClick(expList[0]); await _sleep(60);
+    check("右键自动固定格 → 仍为固定（不可解）", !!(S.marks.get(expList[0]) && S.marks.get(expList[0]).fixed));
+
+    // 7 右键解固（仅手动固定的格子可以解）
     btnFix.click(); await _sleep(60);
     _rightClick(m1); await _sleep(60);
-    check("右键固定格 → 解除固定", !!(S.marks.get(m1) && !S.marks.get(m1).fixed));
+    check("右键手动固定格 → 解除固定", !!(S.marks.get(m1) && !S.marks.get(m1).fixed));
 
-    // 8 清空标记：连固定一起清
+    // 8 清空标记：清手动固定，保留自动固定
     btnFix.click(); await _sleep(60);
     btnWipe.click(); await _sleep(40); btnWipe.click(); await _sleep(80);
-    check("清空标记 → 连金框一起清", S.marks.size === 0);
+    check("清空标记 → 手动固定的清掉，自动固定的保留",
+          !S.marks.has(m1) && S.marks.size === autoBefore);
 
     // 9 已翻出的猫不会被清
     btnFix.click(); btnClear.click(); btnWipe.click(); await _sleep(40); btnWipe.click(); await _sleep(80);
