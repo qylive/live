@@ -321,8 +321,8 @@ body.has-endbar{padding-bottom:8px}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br>翻出小猫后，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（变<b>纯黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
   </p>
 </div>
 
@@ -697,6 +697,7 @@ var LEVELS = [
   {n:20, name:"极限"}
 ];
 var N_MIN = 5, N_MAX = 20;
+var AUTO_FIX_MIN_N = 18;   // 翻猫后自动打叉并固定只在 N ≥ 18 时提供，小盘交给玩家自己推理
 /* 生命值规则：N >= 18 三颗心，否则两颗 */
 function heartsFor(n){ return n >= 18 ? 3 : 2; }
 
@@ -1176,7 +1177,7 @@ function exclusionCells(ci){
   return out;
 }
 
-/* 翻出猫后按规则自动打叉并固定 */
+/* 翻出猫后按规则自动打叉并固定（仅 N ≥ AUTO_FIX_MIN_N 时调用） */
 function autoExclude(ci){
   var list = exclusionCells(ci), cnt = 0;
   for(var q=0;q<list.length;q++){
@@ -1201,7 +1202,7 @@ function attemptCat(i){
     S.marks.delete(i);
     S.revealed.add(i);
     paintCell(i);
-    autoExclude(i);
+    if(S.n >= AUTO_FIX_MIN_N) autoExclude(i);   // 只在大盘（N ≥ 18）自动排除+固定
     renderHUD();
     if(S.revealed.size === S.n) endGame("win");
   }else{
@@ -1706,21 +1707,31 @@ function runSelfTest(){
     await _dbl(cat); await _sleep(80);
     check("双击猫位 → 翻出（剩余 -1）", S.revealed.has(cat) && (n - S.revealed.size) === n - 1);
 
-    // 4b 翻猫后按规则自动排除并固定
+    // 4b 翻猫后的自动排除：仅在 N ≥ AUTO_FIX_MIN_N 提供；小盘只翻猫，标记全手动
     var expList = exclusionCells(cat);
-    var allMarked = true, allFixed = true, noCat = true;
-    for(var q1=0;q1<expList.length;q1++){
-      var mk1 = S.marks.get(expList[q1]);
-      if(!mk1) allMarked = false;
-      else if(!mk1.fixed || !mk1.auto) allFixed = false;
-      if(S.revealed.has(expList[q1])) noCat = false;
+    var AUTO = S.n >= AUTO_FIX_MIN_N;
+    if(AUTO){
+      var allMarked = true, allFixed = true, noCat = true;
+      for(var q1=0;q1<expList.length;q1++){
+        var mk1 = S.marks.get(expList[q1]);
+        if(!mk1) allMarked = false;
+        else if(!mk1.fixed || !mk1.auto) allFixed = false;
+        if(S.revealed.has(expList[q1])) noCat = false;
+      }
+      check("N≥18 翻出猫 → 同行/同列/同色块/周围8格 自动打叉（" + expList.length + " 格）", allMarked);
+      check("自动标记全部自动固定（纯黑，status=auto）", allFixed && allMarked);
+      check("自动排除不会误伤已翻出的猫", noCat);
+      var autoIdx = expList[0], livesA = S.lives;
+      await _dbl(autoIdx); await _sleep(60);
+      check("双击已自动排除的格 → 无反应且不扣心", S.lives === livesA && !S.wrong.has(autoIdx));
+    }else{
+      var anyAuto = 0;
+      for(var q2=0;q2<expList.length;q2++){
+        var mk2 = S.marks.get(expList[q2]);
+        if(mk2 && mk2.auto) anyAuto++;
+      }
+      check("N<18（当前 " + S.n + "×" + S.n + "）→ 翻猫只翻猫，不自动打叉/固定（" + expList.length + " 格应全留白）", anyAuto === 0);
     }
-    check("翻出猫 → 同行/同列/同色块/周围8格 自动打叉（" + expList.length + " 格）", allMarked);
-    check("自动标记全部自动固定（纯黑，status=auto）", allFixed && allMarked);
-    check("自动排除不会误伤已翻出的猫", noCat);
-    var autoIdx = expList[0], livesA = S.lives;
-    await _dbl(autoIdx); await _sleep(60);
-    check("双击已自动排除的格 → 无反应且不扣心", S.lives === livesA && !S.wrong.has(autoIdx));
 
     // 5 双击错误格 → 红叉 + 扣心 + 锁定
     var w = 0; while(S.cats.has(w) || S.revealed.has(w) || S.wrong.has(w) || S.marks.has(w)) w++;
@@ -1756,15 +1767,19 @@ function runSelfTest(){
     check("解除固定 → 恢复原色 [" + el1.style.background + " = " + origRGB + "]",
           !!(S.marks.get(m1) && !S.marks.get(m1).fixed) && el1.style.background === origRGB);
 
-    // 6b 翻猫自动固定的格不可解除
+    // 6b 翻猫自动固定的格不可解除（仅大盘会出现自动固定）
     var autoBefore = 0;
     S.marks.forEach(function(mk){ if(mk.auto) autoBefore++; });
     btnUnfix.click(); await _sleep(60);
     var autoStill = 0;
     S.marks.forEach(function(mk){ if(mk.auto && mk.fixed) autoStill++; });
-    check("解除固定 → 自动固定的 " + autoBefore + " 格不受影响", autoBefore > 0 && autoStill === autoBefore);
-    _rightClick(expList[0]); await _sleep(60);
-    check("右键自动固定格 → 仍为固定（不可解）", !!(S.marks.get(expList[0]) && S.marks.get(expList[0]).fixed));
+    if(AUTO){
+      check("解除固定 → 自动固定的 " + autoBefore + " 格不受影响", autoBefore > 0 && autoStill === autoBefore);
+      _rightClick(expList[0]); await _sleep(60);
+      check("右键自动固定格 → 仍为固定（不可解）", !!(S.marks.get(expList[0]) && S.marks.get(expList[0]).fixed));
+    }else{
+      check("N<18 → 场上没有任何自动固定格（解除固定不影响手动标记）", autoBefore === 0);
+    }
 
     // 7 右键解固（仅手动固定的格子可以解）
     btnFix.click(); await _sleep(60);
