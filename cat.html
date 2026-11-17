@@ -176,6 +176,23 @@ h1 .paw{color:var(--gold)}
   z-index:50;padding:24px;
 }
 .overlay.on{display:flex}
+.panel-acts{display:flex;gap:8px;margin-top:4px}
+.panel-acts .btn{flex:1}
+.endbar{
+  position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%) translateY(14px);
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:16px;
+  background:rgba(255,255,255,.95);border:1px solid var(--line);
+  box-shadow:0 12px 34px rgba(43,36,64,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:opacity .22s ease, transform .22s ease;
+  z-index:60;max-width:calc(100vw - 20px);
+}
+.endbar.on{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+/* 进入“看棋盘”状态时，结算后的按钮行与提示文字都已失效，收起它们给浮条腾位置 */
+body.has-endbar .actions,body.has-endbar .hint{display:none}
+body.has-endbar{padding-bottom:8px}
+.endbar-t{font-size:12px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.endbar .btn{padding:7px 11px;font-size:12px;border-radius:11px;white-space:nowrap}
 .panel{
   background:#fff;border-radius:22px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(43,36,64,.18);
   padding:26px 24px;max-width:360px;width:100%;text-align:center;
@@ -284,8 +301,17 @@ h1 .paw{color:var(--gold)}
     <h2 id="ovTitle">正在铺色块…</h2>
     <p id="ovText"></p>
     <div class="metrics" id="ovMetrics" style="display:none"></div>
-    <button class="btn primary" id="ovBtn" style="display:none">重开一局</button>
+    <div class="panel-acts" id="ovActs" style="display:none">
+      <button class="btn" id="ovPeek">看棋盘上的猫</button>
+      <button class="btn primary" id="ovBtn">重开一局</button>
+    </div>
   </div>
+</div>
+
+<div class="endbar" id="endbar">
+  <span class="endbar-t">本局已结束 · 猫咪位置已揭晓</span>
+  <button class="btn" id="endbarBack">查看结算</button>
+  <button class="btn primary" id="endbarNew">重开一局</button>
 </div>
 
 <script id="gen-src" type="text/plain">// ===== 数独哈基米 · 生成核心（同一份代码直接内联进 cat.html）=====
@@ -763,6 +789,13 @@ var ovTitle = document.getElementById("ovTitle");
 var ovText = document.getElementById("ovText");
 var ovMetrics = document.getElementById("ovMetrics");
 var ovBtn = document.getElementById("ovBtn");
+var ovActs = document.getElementById("ovActs");
+var ovPeek = document.getElementById("ovPeek");
+var endbar = document.getElementById("endbar");
+var endbarNew = document.getElementById("endbarNew");
+var endbarBack = document.getElementById("endbarBack");
+function showEndBar(){ endbar.classList.add("on"); document.body.classList.add("has-endbar"); }
+function hideEndBar(){ endbar.classList.remove("on"); document.body.classList.remove("has-endbar"); }
 var btnFix = document.getElementById("btnFix");
 var btnUnfix = document.getElementById("btnUnfix");
 var btnClear = document.getElementById("btnClear");
@@ -1228,27 +1261,34 @@ btnQuit.addEventListener("click", function(){
 function resetQuitBtn(){ btnQuit.classList.remove("confirm"); btnQuit.textContent = "认输"; }
 
 btnNew.addEventListener("click", function(){ startGame(S.n); });
-ovBtn.addEventListener("click", function(){ hideOverlay(); startGame(S.n); });
+ovBtn.addEventListener("click", function(){ hideEndBar(); hideOverlay(); startGame(S.n); });
+// 结算面板挡住棋盘 → 先让玩家把猫看清楚
+ovPeek.addEventListener("click", function(){ hideOverlay(); showEndBar(); });
+endbarNew.addEventListener("click", function(){ hideEndBar(); startGame(S.n); });
+endbarBack.addEventListener("click", function(){ hideEndBar(); showResult(S.endKind || "quit"); });
 
 /* ============ 遮罩 ============ */
 function showLoading(){
+  hideEndBar();
   overlay.classList.add("on");
   ovSpin.classList.remove("hide");
   ovMetrics.style.display = "none";
-  ovBtn.style.display = "none";
+  ovActs.style.display = "none";
   ovTitle.innerHTML = '正在铺色块<span class="dots"></span>';
   ovText.textContent = "每一局都要先确认「只有唯一解」，稍等一下下。";
 }
 function hideOverlay(){ overlay.classList.remove("on"); }
 function showResult(kind){
+  S.endKind = kind;
+  hideEndBar();
   overlay.classList.add("on");
   ovSpin.classList.add("hide");
   ovMetrics.style.display = "flex";
-  ovBtn.style.display = "block";
+  ovActs.style.display = "flex";
   var title = "恭喜通关", text = "";
   if(kind === "win"){ title = "通关啦！"; text = "所有小猫都被你找出来了。"; }
-  else if(kind === "lose"){ title = "没有心了"; text = "红叉耗尽了生命值，猫咪位置已揭晓。"; }
-  else { title = "已认输"; text = "猫咪位置已揭晓，下一局再来。"; }
+  else if(kind === "lose"){ title = "没有心了"; text = "红叉耗尽了生命值。猫咪位置已在棋盘上揭晓，点「看棋盘上的猫」慢慢对照。"; }
+  else { title = "已认输"; text = "猫咪位置已在棋盘上揭晓，点「看棋盘上的猫」慢慢对照。"; }
   ovTitle.textContent = title;
   ovText.textContent = text;
   ovMetrics.innerHTML =
@@ -1395,7 +1435,10 @@ function startGame(n){
   S.elapsed = 0;
   S.ended = false;
   S.reg = null; S.cats = null;
+  S.endSeq = (S.endSeq || 0) + 1;          // 让上一局残留的“逐格揭晓”定时器失效
+  S.endKind = "";
 
+  hideEndBar();
   stopTimer();
   renderLevels();
   renderHUD();
@@ -1450,23 +1493,34 @@ function startGame(n){
 function endGame(kind){
   if(S.ended) return;
   S.ended = true;
+  S.endKind = kind;
   stopTimer();
   S.foundAtEnd = S.revealed.size;
-  // 翻出全部猫咪
+  // 逐格翻出全部猫咪：先让玩家看见猫在哪，再弹结算面板（面板会挡住棋盘）
+  var pending = [];
   if(S.cats){
-    S.cats.forEach(function(i){
-      if(!S.revealed.has(i)){
-        S.revealed.add(i);
-        paintCell(i);
-      }
-    });
+    S.cats.forEach(function(i){ if(!S.revealed.has(i)) pending.push(i); });
   }
+  pending.sort(function(a,b){ return a-b; });
+  var step = 22;                                  // 每格 22ms，20×20 最多 0.44s
+  S.endSeq = (S.endSeq || 0) + 1;
+  var seq = S.endSeq;
+  pending.forEach(function(i, k){
+    setTimeout(function(){
+      if(!S.ended || S.endSeq !== seq) return;    // 期间已重开 → 丢弃
+      S.revealed.add(i);
+      paintCell(i);
+      renderHUD();
+    }, k * step);
+  });
   renderHUD();
   setBusy(true);
+  board.classList.remove("generating");      // 结算时别把棋盘压暗，猫的位置要看得清
   renderLevels();
   btnNew.disabled = false;
   btnNew.classList.add("primary");
-  showResult(kind);
+  var wait = pending.length * step + (kind === "win" ? 420 : 1100);
+  setTimeout(function(){ if(S.ended && S.endSeq === seq) showResult(kind); }, wait);
 }
 
 /* ============ 窗口变化 ============ */
@@ -1658,11 +1712,26 @@ function runSelfTest(){
     // 10 认输二次确认
     btnQuit.click(); await _sleep(60);
     check("认输第一次点击 → 进入确认态", btnQuit.textContent === "确认认输？");
-    btnQuit.click(); await _sleep(120);
+    btnQuit.click(); await _sleep(100);
     check("认输二次点击 → 对局结束", S.ended === true);
-    check("结束时揭晓全部猫位", S.revealed.size === n);
+    await _sleep(1300 + n * 30);                 // 等逐格揭晓 + 结算面板弹出
+    check("结束时逐格揭晓全部猫位", S.revealed.size === n);
     check("结束后仅剩重开可点", btnNew.disabled === false && btnFix.disabled === true);
     check("结束后自定义下拉禁用", selN.disabled === true);
+    check("结算面板带「看棋盘上的猫」按钮（不再挡住猫位）",
+          overlay.classList.contains("on") && ovActs.style.display === "flex");
+    ovPeek.click(); await _sleep(150);
+    check("点「看棋盘上的猫」→ 关掉遮罩并弹出已结束浮条",
+          !overlay.classList.contains("on") && endbar.classList.contains("on"));
+    check("看棋盘状态收起失效的按钮行与提示（浮条不与内容重叠）",
+          document.body.classList.contains("has-endbar") &&
+          getComputedStyle(document.querySelector(".actions")).display === "none");
+    endbarBack.click(); await _sleep(100);
+    check("浮条「查看结算」→ 重新打开结算面板", overlay.classList.contains("on"));
+    ovPeek.click(); await _sleep(100);
+    endbarNew.click(); await _sleep(500);
+    check("浮条「重开一局」→ 新局开始且浮条收起",
+          S.ended === false && !endbar.classList.contains("on") && S.revealed.size === 0);
     flush();
   }
 }
