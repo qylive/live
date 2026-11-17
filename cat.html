@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#faf7f2">
+<title>数独哈基米</title>
+<style>
+:root{
+  --ink:#2b2440;
+  --ink-2:#5b5470;
+  --ink-3:#8e88a3;
+  --bg:#faf7f2;
+  --card:#ffffff;
+  --line:#e8e2da;
+  --gold:#e0a92c;
+  --gold-soft:rgba(224,169,44,.35);
+  --red:#e5544b;
+  --accent:#5a6fd6;
+  --edge:rgba(43,36,64,.30);
+  --shadow:0 10px 30px rgba(43,36,64,.10);
+  --shadow-s:0 2px 8px rgba(43,36,64,.08);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(circle at 12% 8%, #fff6e6 0%, rgba(255,246,230,0) 42%),
+    radial-gradient(circle at 88% 0%, #eef2ff 0%, rgba(238,242,255,0) 40%),
+    var(--bg);
+  color:var(--ink);
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  min-height:100vh;
+  padding:18px 16px 28px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:980px;margin:0 auto}
+header{text-align:center;margin-bottom:14px}
+h1{
+  margin:0;
+  font-size:clamp(22px,4.6vw,30px);
+  letter-spacing:.06em;
+  font-weight:800;
+  color:var(--ink);
+}
+h1 .paw{color:var(--gold)}
+.sub{margin:6px 0 0;font-size:clamp(11px,2.6vw,13px);color:var(--ink-3);letter-spacing:.04em}
+
+/* 难度 */
+.levels{
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+  margin:14px auto 12px;max-width:620px;
+}
+.lv{
+  appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:.16s;font-family:inherit;
+  box-shadow:var(--shadow-s);
+}
+.lv small{display:block;font-size:10px;font-weight:500;color:var(--ink-3);letter-spacing:.04em}
+.lv[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff;transform:translateY(-1px)}
+.lv[aria-pressed="true"] small{color:rgba(255,255,255,.7)}
+.lv:disabled{opacity:.45;cursor:not-allowed}
+
+/* HUD */
+.hud{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--card);border-radius:18px;border:1px solid var(--line);
+  padding:9px 14px;max-width:520px;margin:0 auto;box-shadow:var(--shadow-s);
+}
+.hud .item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.hud .val{font-size:17px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.hud .val.accent{color:var(--red)}
+.hearts{display:flex;gap:3px}
+.heart{width:19px;height:19px;display:block}
+.heart path{fill:var(--red)}
+.heart.lost path{fill:#e7e2da}
+
+/* 规则 */
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:760px;margin:14px auto 0}
+.rule{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:10px 8px;text-align:center;box-shadow:var(--shadow-s);
+}
+.rule .t{font-size:12px;color:var(--ink-2);line-height:1.45}
+.rule .b{font-size:13px;font-weight:800;color:var(--ink);line-height:1.5;margin-top:2px}
+.rule .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block;margin-right:5px;vertical-align:1px}
+.rules-mobile{display:none}
+
+/* 棋盘 */
+.board-shell{
+  display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:1fr auto;
+  gap:5px;justify-content:center;margin:16px auto 0;width:max-content;
+}
+.rnums{grid-column:1;grid-row:1;display:flex;flex-direction:column;justify-content:space-around}
+.cnums{grid-column:2;grid-row:2;display:flex;justify-content:space-around;padding-top:2px}
+.rnums span,.cnums span{font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums;line-height:1;text-align:center}
+.board{
+  grid-column:2;grid-row:1;
+  display:grid;background:#fff;border-radius:16px;padding:6px;
+  box-shadow:var(--shadow);touch-action:none;user-select:none;-webkit-user-select:none;
+  position:relative;
+}
+.board.generating{opacity:.55;filter:saturate(.6)}
+.cell{
+  position:relative;border-radius:7px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .08s ease, filter .16s ease;
+}
+.cell:active{transform:scale(.96)}
+.cell.br{box-shadow:inset calc(var(--edge-w,0px)*-1) 0 0 var(--edge)}
+.cell.bb{box-shadow:inset 0 calc(var(--edge-w,0px)*-1) 0 var(--edge)}
+.cell.br.bb{box-shadow:inset calc(var(--edge-w,0px)*-1) 0 0 var(--edge), inset 0 calc(var(--edge-w,0px)*-1) 0 var(--edge)}
+.cell.wrong::after{content:"";position:absolute;inset:0;background:rgba(229,84,75,.22)}
+.cell.cat{background-image:radial-gradient(circle at 30% 20%,rgba(255,255,255,.55),rgba(255,255,255,0) 62%)}
+
+.x{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.x i{
+  position:absolute;
+  width:56%;
+  height:calc(var(--cell,26px)*.075);
+  min-height:2px;
+  background:#fff;
+  border-radius:99px;
+  box-shadow:0 0 0 1px rgba(43,36,64,.28);
+  transform:rotate(45deg);
+}
+.x i:last-child{transform:rotate(-45deg)}
+.x.red i{background:#f4584c;box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
+.frame{
+  position:absolute;inset:6%;
+  border:2.5px solid var(--gold);border-radius:9px;
+  box-shadow:0 0 0 1.5px rgba(255,255,255,.72), 0 0 10px rgba(214,160,58,.55),
+              inset 0 0 0 999px rgba(233,183,86,.13);
+  pointer-events:none;
+}
+
+.cat-svg{width:82%;height:82%;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.18))}
+
+/* 按钮 */
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-width:620px;margin:18px auto 0}
+.btn{
+  appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);
+  border-radius:13px;padding:11px 6px;font-size:13px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:.16s;box-shadow:var(--shadow-s);line-height:1.25;
+}
+.btn:hover{border-color:#d6cec2;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn[disabled]{opacity:.42;cursor:not-allowed;transform:none}
+.btn.warn{background:#fff5f4;border-color:#f6d3d0;color:var(--red)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#3a3257;border-color:#3a3257}
+.btn.confirm{background:#fdf2e0;border-color:#f0d6a6;color:#a9731a}
+
+.hint{text-align:center;font-size:11.5px;color:var(--ink-3);margin:12px auto 0;line-height:1.8;max-width:620px}
+.hint b{color:var(--ink-2);font-weight:600}
+.hint-touch{display:none}
+
+/* 遮罩 */
+.overlay{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(250,247,242,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  z-index:50;padding:24px;
+}
+.overlay.on{display:flex}
+.panel{
+  background:#fff;border-radius:22px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(43,36,64,.18);
+  padding:26px 24px;max-width:360px;width:100%;text-align:center;
+}
+.panel h2{margin:0 0 6px;font-size:19px;letter-spacing:.03em}
+.panel p{margin:0;font-size:13px;color:var(--ink-3);line-height:1.7}
+.panel .metrics{display:flex;justify-content:center;gap:22px;margin:16px 0 4px}
+.metrics .m{font-size:11px;color:var(--ink-3)}
+.metrics .m b{display:block;font-size:18px;color:var(--ink);margin-top:3px;font-variant-numeric:tabular-nums}
+.panel .btn{width:100%;margin-top:18px;padding:13px;font-size:14px}
+.spinner{
+  width:38px;height:38px;margin:0 auto 16px;border-radius:50%;
+  border:3px solid #eee6da;border-top-color:var(--gold);animation:spin .9s linear infinite;
+}
+.spinner.hide{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dots::after{content:"";animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}100%{content:"..."}}
+
+@media (max-width:767px){
+  body{padding:12px 10px 22px}
+  header{margin-bottom:8px}
+  .sub{display:none}
+  .levels{display:none}
+  .hud{padding:7px 12px;border-radius:14px;max-width:none;margin:0 2px}
+  .hud .item{font-size:11px;gap:5px}
+  .hud .val{font-size:15px}
+  .heart{width:16px;height:16px}
+  .rules{display:none}
+  .rules-mobile{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:4px;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:8px 6px;margin:10px 2px 0;box-shadow:var(--shadow-s);
+  }
+  .rules-mobile .rm{text-align:center;line-height:1.5;font-size:10px;color:var(--ink-3)}
+  .rules-mobile .rm b{display:block;font-size:10.5px;color:#4a5cc0;font-weight:800}
+  .board-shell{margin-top:12px}
+  .rnums,.cnums{display:none}
+  .actions{gap:7px;margin-top:14px}
+  .btn{padding:9px 4px;font-size:12px;border-radius:11px}
+  .hint{font-size:10.5px;margin-top:9px}
+  .hint-pc{display:none}
+  .hint-touch{display:inline}
+  .panel{padding:22px 18px;border-radius:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  .spinner{animation-duration:3s}
+  .cell{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>数独哈基米</h1>
+    <p class="sub">每种颜色一只猫 · 每行每列一只猫 · 猫的周围不能有猫</p>
+  </header>
+
+  <div class="levels" id="levels"></div>
+
+  <div class="hud">
+    <div class="item"><span>剩余小猫</span><span class="val accent" id="left">—</span></div>
+    <div class="hearts" id="hearts" aria-label="生命值"></div>
+    <div class="item"><span>用时</span><span class="val" id="timer">00:00</span></div>
+  </div>
+
+  <div class="rules">
+    <div class="rule"><div class="t">每种颜色</div><div class="b"><span class="dot"></span>仅 1 只猫</div></div>
+    <div class="rule"><div class="t">每行每列</div><div class="b"><span class="dot"></span>仅 1 只猫</div></div>
+    <div class="rule"><div class="t">猫的四周</div><div class="b"><span class="dot"></span>不能有猫</div></div>
+  </div>
+  <div class="rules-mobile">
+    <div class="rm">每种颜色<b>仅1只猫</b></div>
+    <div class="rm">每行每列<b>仅1只猫</b></div>
+    <div class="rm">猫四周<b>不能有猫</b></div>
+  </div>
+
+  <div class="board-shell" id="shell">
+    <div class="rnums" id="rnums"></div>
+    <div class="board" id="board" aria-label="棋盘"></div>
+    <div class="cnums" id="cnums"></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="btnFix">固定标记</button>
+    <button class="btn" id="btnUnfix">解除固定</button>
+    <button class="btn" id="btnClear">清除标记</button>
+    <button class="btn" id="btnWipe">清空标记</button>
+    <button class="btn" id="btnNew">重开一局</button>
+    <button class="btn warn" id="btnQuit">认输</button>
+  </div>
+
+  <p class="hint">
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。</span>
+  </p>
+</div>
+
+<div class="overlay" id="overlay" aria-live="polite">
+  <div class="panel">
+    <div class="spinner" id="ovSpin"></div>
+    <h2 id="ovTitle">正在铺色块…</h2>
+    <p id="ovText"></p>
+    <div class="metrics" id="ovMetrics" style="display:none"></div>
+    <button class="btn primary" id="ovBtn" style="display:none">重开一局</button>
+  </div>
+</div>
+
+<script id="gen-src" type="text/plain">// ===== 数独哈基米 · 生成核心（同一份代码直接内联进 cat.html）=====
+// 思路：先定猫位 S，再铺色块；用「逻辑推演引擎」判定是否已推到唯一解，
+// 把「未定格数量」当作目标函数做定点搬移，归零即证明唯一解。
+
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function nbrs(N,i){
+  const r=Math.floor(i/N), c=i%N, out=[];
+  if(r>0) out.push(i-N);
+  if(r<N-1) out.push(i+N);
+  if(c>0) out.push(i-1);
+  if(c<N-1) out.push(i+1);
+  return out;
+}
+// 1) 定答案：每行每列各 1 只，相邻两行列差 >= 2
+function genCats(N,rnd){
+  const s=new Int8Array(N), used=new Uint8Array(N);
+  function dfs(r){
+    if(r===N) return true;
+    const cand=[];
+    for(let c=0;c<N;c++){
+      if(used[c]) continue;
+      if(r>0 && Math.abs(c-s[r-1])<2) continue;
+      cand.push(c);
+    }
+    for(let i=cand.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); const t=cand[i]; cand[i]=cand[j]; cand[j]=t; }
+    for(const c of cand){
+      s[r]=c; used[c]=1;
+      if(dfs(r+1)) return true;
+      used[c]=0;
+    }
+    return false;
+  }
+  if(!dfs(0)) return null;
+  return s;
+}
+// 2) 铺色块：少数小色块先钉死猫位，其余面积均分（尺寸上限受控，避免巨块）
+function growRegions(N,s,rnd,p){
+  const reg=new Int8Array(N*N).fill(-1);
+  const frontier=[], sizes=new Int32Array(N), target=new Int32Array(N);
+  for(let k=0;k<N;k++) frontier.push([]);
+  for(let r=0;r<N;r++){
+    const i=r*N+s[r];
+    reg[i]=r; frontier[r].push(i); sizes[r]=1;
+  }
+  const small=[];
+  for(let k=0;k<N;k++) if(rnd()<p) small.push(k);
+  const rest=N*N-N, big=Math.max(1,N-small.length);
+  const maxCell=Math.ceil(5*N);                  // 单块上限，避免整盘被一块吞掉
+  for(let k=0;k<N;k++){
+    target[k]= small.indexOf(k)>=0
+      ? (2+Math.floor(rnd()*3))
+      : Math.min(maxCell, Math.max(3,Math.floor(rest/big)));
+  }
+  let filled=N;
+  while(filled<N*N){
+    const cand=[];
+    for(let k=0;k<N;k++) if(frontier[k].length && sizes[k]<target[k]) cand.push(k);
+    const pool = cand.length ? cand : (function(){
+      const a=[]; for(let k=0;k<N;k++) if(frontier[k].length && sizes[k]<maxCell) a.push(k); return a;
+    })();
+    if(!pool.length) break;
+    pool.sort((a,b)=>(sizes[a]/Math.max(1,target[a])) - (sizes[b]/Math.max(1,target[b])));
+    let placed=false;
+    for(const k of pool){
+      let tries=0;
+      while(frontier[k].length && tries<30){
+        const idx=Math.floor(rnd()*frontier[k].length);
+        const from=frontier[k][idx];
+        const free=nbrs(N,from).filter(x=>reg[x]<0);
+        if(!free.length){ frontier[k].splice(idx,1); tries++; continue; }
+        const cell=free[Math.floor(rnd()*free.length)];
+        reg[cell]=k; sizes[k]++; frontier[k].push(cell); filled++; placed=true;
+        break;
+      }
+      if(placed) break;
+    }
+    if(!placed) break;
+  }
+  // 剩余格补给它"最小的相邻色块"，避免出现超大块
+  let guard=0;
+  while(filled<N*N && guard++ < N*N*4){
+    let progress=false;
+    for(let i=0;i<N*N;i++){
+      if(reg[i]>=0) continue;
+      const nb=nbrs(N,i).filter(x=>reg[x]>=0);
+      if(!nb.length) continue;
+      let bestK=-1, bestSize=1e9;
+      for(const x of nb){ const k=reg[x]; if(sizes[k]<bestSize){ bestSize=sizes[k]; bestK=k; } }
+      reg[i]=bestK; sizes[bestK]++; filled++; progress=true;
+    }
+    if(!progress) break;
+  }
+  if(filled<N*N) return null;
+  return reg;
+}
+// 3) 叶格：拿走它不会让所在色块断开
+function regionConnected(N,reg,k,exceptCell){
+  let start=-1, total=0;
+  for(let i=0;i<N*N;i++){
+    if(reg[i]!==k) continue;
+    if(i===exceptCell) continue;
+    total++;
+    if(start<0) start=i;
+  }
+  if(total===0) return true;
+  const seen=new Uint8Array(N*N), q=[start];
+  seen[start]=1; let cnt=1;
+  while(q.length){
+    const cur=q.pop();
+    for(const nb of nbrs(N,cur)){
+      if(nb===exceptCell || reg[nb]!==k || seen[nb]) continue;
+      seen[nb]=1; q.push(nb); cnt++;
+    }
+  }
+  return cnt===total;
+}
+function isLeaf(N,reg,cell){
+  return regionConnected(N,reg,reg[cell],cell);
+}
+// 终局结构校验：每色块连通、每色块恰 1 猫
+function structureOk(N,reg,cats){
+  const catCnt=new Int32Array(N), has=new Uint8Array(N);
+  for(let i=0;i<N*N;i++) has[reg[i]]=1;
+  for(const c of cats) catCnt[reg[c]]++;
+  for(let k=0;k<N;k++){
+    if(!has[k] || catCnt[k]!==1) return false;
+    if(!regionConnected(N,reg,k,-1)) return false;
+  }
+  return true;
+}
+// 暴力枚举复核：返回候选解个数（到 limit 就停）
+function countSolutions(N,reg,limit,nodeCap){
+  const uc=new Uint8Array(N), ur=new Uint8Array(N);
+  let count=0, nodes=0, capped=false;
+  function dfs(r,prev){
+    if(count>=limit) return;
+    if(nodeCap && ++nodes>nodeCap){ capped=true; return; }
+    if(r===N){ count++; return; }
+    const b=r*N;
+    for(let c=0;c<N;c++){
+      if(uc[c]) continue;
+      if(prev>=0 && Math.abs(c-prev)<2) continue;
+      const k=reg[b+c];
+      if(ur[k]) continue;
+      uc[c]=1; ur[k]=1;
+      dfs(r+1,c);
+      uc[c]=0; ur[k]=0;
+      if(count>=limit || capped) return;
+    }
+  }
+  dfs(0,-1);
+  return {count, capped, nodes};
+}
+// 4) 逻辑推演引擎：只用必然成立的推理，推到底。未定格 0 个 ⇒ 解唯一
+function deduce(N,reg){
+  const st=new Uint8Array(N*N); // 0 未知 / 1 无猫 / 2 猫
+  const cells=[];
+  for(let k=0;k<N;k++) cells.push([]);
+  for(let i=0;i<N*N;i++) cells[reg[i]].push(i);
+  const R=i=>Math.floor(i/N), C=i=>i%N;
+  const lite=new Uint8Array(N*N);
+  let dirty=true;
+  while(dirty){
+    dirty=false;
+    // A. 已确定的猫：同行 / 同列 / 同色块 / 八邻 全部排除
+    for(let i=0;i<N*N;i++) if(st[i]===2){
+      if(lite[i]) continue; lite[i]=1;
+      const r=R(i), c=C(i);
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        if(!dr&&!dc) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nr>=N||nc<0||nc>=N) continue;
+        const j=nr*N+nc; if(st[j]===0){ st[j]=1; dirty=true; }
+      }
+      for(let cc=0;cc<N;cc++){ const j=r*N+cc; if(st[j]===0){ st[j]=1; dirty=true; } }
+      for(let rr=0;rr<N;rr++){ const j=rr*N+c; if(st[j]===0){ st[j]=1; dirty=true; } }
+      for(const j of cells[reg[i]]) if(st[j]===0){ st[j]=1; dirty=true; }
+    }
+    // B. 单位只剩 1 个候选 ⇒ 就是猫；单位已有猫 ⇒ 其余排除
+    const units=[];
+    for(let r=0;r<N;r++){ const u=[]; for(let c=0;c<N;c++) u.push(r*N+c); units.push(u); }
+    for(let c=0;c<N;c++){ const u=[]; for(let r=0;r<N;r++) u.push(r*N+c); units.push(u); }
+    for(let k=0;k<N;k++) units.push(cells[k]);
+    for(const u of units){
+      let cat=0; const cand=[];
+      for(const i of u){ if(st[i]===2) cat++; else if(st[i]===0) cand.push(i); }
+      if(cat===0 && cand.length===1){ st[cand[0]]=2; dirty=true; }
+      else if(cat>0 && cand.length){ for(const i of cand){ st[i]=1; dirty=true; } }
+    }
+    // C. 色块的候选只落在同一行（列）⇒ 那一行（列）的猫被这块包办
+    for(let k=0;k<N;k++){
+      let cat=0, cand=[];
+      for(const i of cells[k]){ if(st[i]===2) cat++; else if(st[i]===0) cand.push(i); }
+      if(cat>0 || !cand.length) continue;
+      const rows=[], cols=[];
+      for(const i of cand){ const r=R(i); if(rows.indexOf(r)<0) rows.push(r); }
+      for(const i of cand){ const c=C(i); if(cols.indexOf(c)<0) cols.push(c); }
+      if(rows.length===1){
+        const r=rows[0];
+        for(let c=0;c<N;c++){ const j=r*N+c; if(reg[j]!==k && st[j]===0){ st[j]=1; dirty=true; } }
+      }
+      if(cols.length===1){
+        const c=cols[0];
+        for(let r=0;r<N;r++){ const j=r*N+c; if(reg[j]!==k && st[j]===0){ st[j]=1; dirty=true; } }
+      }
+    }
+    // D. 一行的候选只落在同一色块 ⇒ 这块的猫被这一行包办
+    for(let r=0;r<N;r++){
+      let cat=0; const cand=[];
+      for(let c=0;c<N;c++){ const j=r*N+c; if(st[j]===2) cat++; else if(st[j]===0) cand.push(j); }
+      if(cat>0 || !cand.length) continue;
+      const ks=[]; for(const i of cand){ const k=reg[i]; if(ks.indexOf(k)<0) ks.push(k); }
+      if(ks.length===1){
+        const k=ks[0];
+        for(const j of cells[k]) if(R(j)!==r && st[j]===0){ st[j]=1; dirty=true; }
+      }
+    }
+    for(let c=0;c<N;c++){
+      let cat=0; const cand=[];
+      for(let r=0;r<N;r++){ const j=r*N+c; if(st[j]===2) cat++; else if(st[j]===0) cand.push(j); }
+      if(cat>0 || !cand.length) continue;
+      const ks=[]; for(const i of cand){ const k=reg[i]; if(ks.indexOf(k)<0) ks.push(k); }
+      if(ks.length===1){
+        const k=ks[0];
+        for(const j of cells[k]) if(C(j)!==c && st[j]===0){ st[j]=1; dirty=true; }
+      }
+    }
+  }
+  let unknown=0, cats=0;
+  for(let i=0;i<N*N;i++){ if(st[i]===0) unknown++; else if(st[i]===2) cats++; }
+  return {unknown, cats, st};
+}
+// 5) 定点搬移下山：瞄着未定格，把它所在色块的叶格搬到隔壁，缩小候选面
+function generate(N,seed,budgetMs,opts){
+  const p = (opts && opts.smallRatio!=null) ? opts.smallRatio : (N>=20?0.75 : N>=15?0.65 : 0.6);
+  const t0=(typeof performance!=="undefined"?performance.now():Date.now());
+  const now=()=> (typeof performance!=="undefined"?performance.now():Date.now());
+  const rnd=mulberry32(seed);
+  let best=1e9, tries=0;
+  while(now()-t0<budgetMs && tries<40){
+    tries++;
+    const s=genCats(N,rnd);
+    if(!s) continue;
+    const reg=growRegions(N,s,rnd,p);
+    if(!reg) continue;
+    const cats=new Set();
+    for(let r=0;r<N;r++) cats.add(r*N+s[r]);
+    let res=deduce(N,reg);
+    let cur=res.unknown, stale=0;
+    const staleCap = Math.max(240, 12*N);
+    while(now()-t0<budgetMs){
+      if(cur===0){
+        // 开门门槛：结构合法 + 暴力枚举复核不得出现第 2 个解
+        if(structureOk(N,reg,cats)){
+          const chk=countSolutions(N,reg,2,4000000);
+          if(chk.count===1 || (chk.capped && chk.count<2))
+            return {reg,cats,unknown:0,ms:Math.round(now()-t0),tries};
+        }
+        break;
+      }
+      const st=res.st;
+      const unknownCells=[];
+      for(let i=0;i<N*N;i++) if(st[i]===0) unknownCells.push(i);
+      // 交换两个相邻色块的叶格：尺寸不变，只挪形状，用来解开僵局
+      if(unknownCells.length && unknownCells.length<N && rnd()<0.4){
+        let a=-1,b=-1;
+        for(let k2=0;k2<60;k2++){
+          const i=Math.floor(rnd()*N*N);
+          if(cats.has(i)||!isLeaf(N,reg,i)) continue;
+          for(const nb of nbrs(N,i)){
+            if(cats.has(nb)||reg[nb]===reg[i]) continue;
+            if(!isLeaf(N,reg,nb)) continue;
+            // 交换后两块的共同边要存在，避免把已连通块拆散
+            a=i; b=nb; break;
+          }
+          if(a>=0) break;
+        }
+        if(a>=0){
+          const ra=reg[a], rb=reg[b];
+          reg[a]=rb; reg[b]=ra;
+          if(regionConnected(N,reg,ra,-1) && regionConnected(N,reg,rb,-1)){
+            const r3=deduce(N,reg);
+            if(r3.unknown<=cur){
+              if(r3.unknown<cur){ cur=r3.unknown; res=r3; stale=0; }
+              else { res=r3; stale++; }
+            } else { reg[a]=ra; reg[b]=rb; stale++; }
+          } else { reg[a]=ra; reg[b]=rb; stale++; }
+          if(stale>staleCap) break;
+          continue;
+        }
+      }
+      let cell=-1, k=-1;
+      if(unknownCells.length && rnd()<0.85){
+        const u=unknownCells[Math.floor(rnd()*unknownCells.length)];
+        const ku=reg[u], leaves=[];
+        for(let i=0;i<N*N;i++){
+          if(reg[i]!==ku || i===u || cats.has(i)) continue;
+          if(!isLeaf(N,reg,i)) continue;
+          let found=-1;
+          for(const nb of nbrs(N,i)) if(reg[nb]!==ku){ found=nb; break; }
+          if(found>=0) leaves.push(i);
+        }
+        if(leaves.length){
+          cell=leaves[Math.floor(rnd()*leaves.length)];
+          const opts2=[];
+          for(const nb of nbrs(N,cell)) if(reg[nb]!==reg[cell]) opts2.push(reg[nb]);
+          k=opts2[Math.floor(rnd()*opts2.length)];
+        }
+      }
+      if(cell<0){
+        cell=Math.floor(rnd()*N*N);
+        if(cats.has(cell) || !isLeaf(N,reg,cell)){ if(++stale>staleCap) break; continue; }
+        const opts2=[];
+        for(const nb of nbrs(N,cell)) if(reg[nb]!==reg[cell]) opts2.push(reg[nb]);
+        if(!opts2.length){ if(++stale>staleCap) break; continue; }
+        k=opts2[Math.floor(rnd()*opts2.length)];
+      }
+      const old=reg[cell];
+      reg[cell]=k;
+      const r2=deduce(N,reg);
+      if(r2.unknown<=cur){
+        if(r2.unknown<cur){ cur=r2.unknown; res=r2; stale=0; }
+        else { res=r2; stale++; }
+      } else { reg[cell]=old; stale++; }
+      if(stale>staleCap) break;
+    }
+    if(cur<best) best=cur;
+  }
+  return {reg:null,cats:null,unknown:best,ms:Math.round(now()-t0),tries};
+}
+if (typeof module!=='undefined') module.exports={generate,deduce,growRegions,genCats,isLeaf,nbrs};
+</script>
+
+<script>
+/* ============ 常量 ============ */
+var PALETTE = ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296",
+               "#72d5be","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace",
+               "#d779ce","#de91bb","#d06283","#eac5b8"];
+var LEVELS = [
+  {n:7,  name:"简单", hearts:2},
+  {n:10, name:"普通", hearts:2},
+  {n:15, name:"困难", hearts:2},
+  {n:20, name:"极限", hearts:3}
+];
+
+var CAT_SVG = '<svg class="cat-svg" viewBox="0 0 100 100" aria-hidden="true">'
+  + '<path d="M26 40 L20 13 L46 27 Z" fill="#f2b25c" stroke="#8a5a22" stroke-width="2.6" stroke-linejoin="round"/>'
+  + '<path d="M74 40 L80 13 L54 27 Z" fill="#f2b25c" stroke="#8a5a22" stroke-width="2.6" stroke-linejoin="round"/>'
+  + '<path d="M28 36 L25 24 L39 30 Z" fill="#f7c9a0"/>'
+  + '<path d="M72 36 L75 24 L61 30 Z" fill="#f7c9a0"/>'
+  + '<ellipse cx="50" cy="55" rx="31" ry="28" fill="#f7c17b" stroke="#8a5a22" stroke-width="2.6"/>'
+  + '<path d="M34 34 q-4 8 -1 14" stroke="#d99a4e" stroke-width="4" stroke-linecap="round" fill="none"/>'
+  + '<path d="M50 30 q-3 6 0 10" stroke="#d99a4e" stroke-width="4" stroke-linecap="round" fill="none"/>'
+  + '<path d="M66 34 q4 8 1 14" stroke="#d99a4e" stroke-width="4" stroke-linecap="round" fill="none"/>'
+  + '<ellipse cx="50" cy="64" rx="16" ry="12" fill="#fff6e8"/>'
+  + '<ellipse cx="39" cy="53" rx="4.4" ry="5.6" fill="#3a2413"/>'
+  + '<ellipse cx="61" cy="53" rx="4.4" ry="5.6" fill="#3a2413"/>'
+  + '<circle cx="40.6" cy="51" r="1.5" fill="#fff"/>'
+  + '<circle cx="62.6" cy="51" r="1.5" fill="#fff"/>'
+  + '<path d="M50 61 l-3.6 4.6 h7.2 z" fill="#e4778f"/>'
+  + '<path d="M50 66 q-4 4 -7 1 M50 66 q4 4 7 1" stroke="#8a5a22" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+  + '<path d="M26 60 h-9 M26 66 h-9 M74 60 h9 M74 66 h9" stroke="#8a5a22" stroke-width="1.8" stroke-linecap="round" opacity=".65"/>'
+  + '</svg>';
+
+var HEART_SVG = '<svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.1-8-11A4.6 4.6 0 0 1 12 6.3 4.6 4.6 0 0 1 20 10c0 5.9-8 11-8 11z"/></svg>';
+
+/* ============ 生成核心（与 worker 同源） ============ */
+var GEN_SRC = document.getElementById("gen-src").textContent;
+var GEN = (function(){
+  try { return new Function(GEN_SRC + "\nreturn {generate:generate};")(); }
+  catch(e){ console.error("生成器加载失败", e); return null; }
+})();
+
+var worker = null, workerOk = false, pending = null;
+(function initWorker(){
+  // file:// 页面里 blob worker 会被浏览器拦掉，这种环境直接在主线程生成
+  if(location.protocol === "file:") return;
+  try{
+    var glue = "\nself.onmessage=function(e){var d=e.data;var r=generate(d.n,d.seed,d.budget,{});"
+      + "self.postMessage({ok:!!(r.reg&&r.unknown===0),reg:r.reg?Array.prototype.slice.call(r.reg):null,"
+      + "cats:r.cats?Array.from(r.cats):null,ms:r.ms,tries:r.tries,unknown:r.unknown});};";
+    var blob = new Blob([GEN_SRC + glue], {type:"text/javascript"});
+    worker = new Worker(URL.createObjectURL(blob));
+    worker.onmessage = function(e){
+      var p = pending;
+      pending = null;
+      if(!p) return;
+      if(e.data && e.data.ok) p.ok(e.data);
+      else p.fail(new Error("生成未收敛"));
+    };
+    worker.onerror = function(){
+      workerOk = false;
+      worker = null;
+      if(pending){ var p = pending; pending = null; p.fail(new Error("worker error")); }
+    };
+    workerOk = true;
+  }catch(err){
+    worker = null;
+    workerOk = false;
+  }
+})();
+
+/* ============ 工具 ============ */
+function isMobile(){
+  var w = window.innerWidth;
+  var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  return w < 768 || (coarse && w < 1024);
+}
+function hexToLab(hex){
+  var r=parseInt(hex.substr(1,2),16)/255, g=parseInt(hex.substr(3,2),16)/255, b=parseInt(hex.substr(5,2),16)/255;
+  function f(x){ return x<=0.04045 ? x/12.92 : Math.pow((x+0.055)/1.055, 2.4); }
+  r=f(r); g=f(g); b=f(b);
+  var X=(r*0.4124+g*0.3576+b*0.1805)/0.95047;
+  var Y=(r*0.2126+g*0.7152+b*0.0722)/1.0;
+  var Z=(r*0.0193+g*0.1192+b*0.9505)/1.08883;
+  function g2(t){ return t>0.008856 ? Math.pow(t,1/3) : (7.787*t+16/116); }
+  var fx=g2(X), fy=g2(Y), fz=g2(Z);
+  return {L:116*fy-16, a:500*(fx-fy), b:200*(fy-fz)};
+}
+var LABS = PALETTE.map(hexToLab);
+var HUES = LABS.map(function(l){
+  var h = Math.atan2(l.b, l.a) * 180 / Math.PI;
+  return h < 0 ? h + 360 : h;
+});
+var DE = (function(){
+  var m=[];
+  for(var i=0;i<PALETTE.length;i++){
+    m.push([]);
+    for(var j=0;j<PALETTE.length;j++){
+      var d1=LABS[i].L-LABS[j].L, d2=LABS[i].a-LABS[j].a, d3=LABS[i].b-LABS[j].b;
+      m[i].push(Math.sqrt(d1*d1+d2*d2+d3*d3));
+    }
+  }
+  return m;
+})();
+
+function fmtTime(ms){
+  var t=Math.floor(ms/1000);
+  var m=Math.floor(t/60), s=t%60;
+  return (m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+}
+
+/* ============ 状态 ============ */
+var S = {
+  n:10, reg:null, cats:null, hearts:2, lives:2,
+  revealed:null, wrong:null, marks:null,
+  cells:[], bcls:[], colors:null,
+  running:false, t0:0, elapsed:0, ended:false,
+  timerId:0, levelIdx:1
+};
+
+var board = document.getElementById("board");
+var shell = document.getElementById("shell");
+var rnums = document.getElementById("rnums");
+var cnums = document.getElementById("cnums");
+var levelsEl = document.getElementById("levels");
+var leftEl = document.getElementById("left");
+var heartsEl = document.getElementById("hearts");
+var timerEl = document.getElementById("timer");
+var overlay = document.getElementById("overlay");
+var ovSpin = document.getElementById("ovSpin");
+var ovTitle = document.getElementById("ovTitle");
+var ovText = document.getElementById("ovText");
+var ovMetrics = document.getElementById("ovMetrics");
+var ovBtn = document.getElementById("ovBtn");
+var btnFix = document.getElementById("btnFix");
+var btnUnfix = document.getElementById("btnUnfix");
+var btnClear = document.getElementById("btnClear");
+var btnWipe = document.getElementById("btnWipe");
+var btnNew = document.getElementById("btnNew");
+var btnQuit = document.getElementById("btnQuit");
+
+/* ============ 难度条 ============ */
+function renderLevels(){
+  levelsEl.innerHTML = "";
+  LEVELS.forEach(function(lv, i){
+    var b = document.createElement("button");
+    b.className = "lv";
+    b.type = "button";
+    b.setAttribute("aria-pressed", S.levelIdx===i ? "true" : "false");
+    b.innerHTML = lv.name + "<small>" + lv.n + "×" + lv.n + "</small>";
+    b.disabled = S.ended;
+    b.addEventListener("click", function(){ startGame(i); });
+    levelsEl.appendChild(b);
+  });
+}
+
+/* ============ HUD ============ */
+function renderHUD(){
+  var left = S.n - (S.revealed ? S.revealed.size : 0);
+  leftEl.textContent = S.reg ? left : "—";
+  heartsEl.innerHTML = "";
+  for(var i=0;i<S.hearts;i++){
+    var span = document.createElement("span");
+    span.innerHTML = HEART_SVG;
+    span.firstChild.className = "heart" + (i < S.lives ? "" : " lost");
+    heartsEl.appendChild(span.firstChild);
+  }
+  timerEl.textContent = fmtTime(S.elapsed);
+}
+
+function startTimer(){
+  stopTimer();
+  S.running = true;
+  S.t0 = Date.now() - S.elapsed;
+  S.timerId = setInterval(function(){
+    if(!S.running) return;
+    S.elapsed = Date.now() - S.t0;
+    timerEl.textContent = fmtTime(S.elapsed);
+  }, 250);
+}
+function stopTimer(){
+  S.running = false;
+  if(S.timerId){ clearInterval(S.timerId); S.timerId = 0; }
+}
+
+/* ============ 棋盘尺寸 ============ */
+function computeBoardSize(){
+  var vw = document.documentElement.clientWidth || window.innerWidth;
+  var mobile = isMobile();
+  var maxW = vw - (mobile ? 30 : 44);
+  if(!mobile){
+    if(S.n >= 20) maxW = Math.min(maxW, 960);
+    else if(S.n >= 15) maxW = Math.min(maxW, 900);
+    else maxW = Math.min(maxW, 760);
+    // 小棋盘顺手把高度也压进一屏；大棋盘要保住格子大小，高了就整页滚动
+    if(S.n < 15) maxW = Math.min(maxW, Math.max(300, window.innerHeight - 350));
+  }
+  return Math.max(240, Math.floor(maxW));
+}
+
+/* ============ 建棋盘 ============ */
+function buildBoard(){
+  var n = S.n;
+  var size = computeBoardSize();
+  var pad = Math.round(Math.max(4, size * 0.012 * (n>=15?1.4:1)));
+  var gap = Math.round(Math.max(2, size / n * (n>=15 ? 0.075 : 0.085)));
+  var radius = Math.round(Math.max(4, size / n * (n>=15 ? 0.16 : 0.2)));
+  var cell = (size - pad*2 - gap*(n-1)) / n;
+
+  board.style.width = size + "px";
+  board.style.height = size + "px";
+  board.style.padding = pad + "px";
+  board.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
+  board.style.gridTemplateRows = "repeat(" + n + ", 1fr)";
+  board.style.gap = gap + "px";
+  board.style.background = "#fff";
+  board.style.setProperty("--cell", cell.toFixed(1) + "px");
+  var edgeW = n >= 15 ? Math.max(2, Math.round(cell * 0.045)) : 0;
+  board.style.setProperty("--edge-w", edgeW + "px");
+  board.setAttribute("data-n", n);
+
+  board.innerHTML = "";
+  S.cells = []; S.bcls = [];
+  var frag = document.createDocumentFragment();
+  for(var i=0;i<n*n;i++){
+    var d = document.createElement("div");
+    d.className = "cell";
+    d.style.borderRadius = radius + "px";
+    d.style.background = S.colors[ S.reg[i] ];
+    var extra = "";
+    var r = Math.floor(i/n), c = i % n;
+    if(n >= 15){
+      if(c+1<n && S.reg[i] !== S.reg[i+1]) extra += " br";
+      if(r+1<n && S.reg[i] !== S.reg[i+n]) extra += " bb";
+    }
+    S.bcls.push(extra);
+    S.cells.push(d);
+    frag.appendChild(d);
+  }
+  board.appendChild(frag);
+
+  // 行列号仅大棋盘显示
+  rnums.innerHTML = ""; cnums.innerHTML = "";
+  if(n >= 15){
+    rnums.style.width = (String(n).length > 1 ? 16 : 12) + "px";
+    rnums.style.height = size + "px";
+    cnums.style.height = "12px";
+    for(var r2=0;r2<n;r2++){
+      var a = document.createElement("span"); a.textContent = (r2+1); rnums.appendChild(a);
+    }
+    for(var c2=0;c2<n;c2++){
+      var b2 = document.createElement("span"); b2.textContent = (c2+1); cnums.appendChild(b2);
+    }
+  }
+  for(var j=0;j<n*n;j++) paintCell(j);
+  board.classList.remove("generating");
+}
+
+/* ============ 单格重绘 ============ */
+function paintCell(i){
+  var el = S.cells[i];
+  if(!el) return;
+  var cls = "cell" + S.bcls[i];
+  if(S.revealed.has(i)) cls += " cat";
+  else if(S.wrong.has(i)) cls += " wrong";
+  el.className = cls;
+  if(S.revealed.has(i)){
+    el.innerHTML = CAT_SVG;
+  }else if(S.wrong.has(i)){
+    el.innerHTML = '<span class="x red"><i></i><i></i></span>';
+  }else if(S.marks.has(i)){
+    var mk = S.marks.get(i);
+    el.innerHTML = '<span class="x"><i></i><i></i></span>' + (mk.fixed ? '<span class="frame"></span>' : "");
+  }else{
+    el.innerHTML = "";
+  }
+}
+
+/* ============ 配色：每档预设一套差异最大的颜色（常量），只按邻接关系分配 ============ */
+var PALETTE_SETS = {
+  7:  ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec"],
+  10: ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec","#cea55a","#d779ce","#c0ece0"],
+  15: ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec","#cea55a","#d779ce","#c0ece0",
+       "#cdce5a","#5a7ece","#5a9dce","#6ad296","#b3b0e8"],
+  20: ["#5e5ace","#68d062","#eac5b8","#5ac4ce","#d06283","#deecc0","#c0d1ec","#cea55a","#d779ce","#c0ece0",
+       "#cdce5a","#5a7ece","#5a9dce","#6ad296","#b3b0e8","#de91bb","#de9196","#c5dc89","#dcb489","#72d5be"]
+};
+var HEX_INDEX = (function(){
+  var m = {};
+  for(var i=0;i<PALETTE.length;i++) m[PALETTE[i]] = i;
+  return m;
+})();
+function perceptual(a, b){
+  var dh = Math.abs(HUES[a] - HUES[b]);
+  dh = Math.min(dh, 360 - dh);
+  return DE[a][b] + dh * 0.45;
+}
+function colorSetFor(n){
+  var hexes = PALETTE_SETS[n] || PALETTE;
+  var out = [];
+  for(var i=0;i<hexes.length;i++){
+    var idx = HEX_INDEX[hexes[i]];
+    if(idx !== undefined) out.push(idx);
+  }
+  return out;
+}
+
+function assignColors(n, reg){
+  var adj = [], i;
+  for(i=0;i<n;i++) adj.push([]);
+  function addEdge(a, x, y){
+    if(a[x].indexOf(y) < 0){ a[x].push(y); a[y].push(x); }
+  }
+  for(i=0;i<n*n;i++){
+    var r = Math.floor(i/n), c = i % n;
+    if(c+1<n && reg[i] !== reg[i+1]) addEdge(adj, reg[i], reg[i+1]);
+    if(r+1<n && reg[i] !== reg[i+n]) addEdge(adj, reg[i], reg[i+n]);
+  }
+
+  var subset = colorSetFor(Math.min(n, PALETTE.length));
+  var order = [];
+  for(i=0;i<n;i++) order.push(i);
+  order.sort(function(a,b){ return adj[b].length - adj[a].length; });
+
+  var colorOf = new Int32Array(n).fill(-1);
+  var used = {};
+  for(var oi=0; oi<order.length; oi++){
+    var k = order[oi];
+    var best = subset[0], bestScore = -1e9;
+    for(var si=0; si<subset.length; si++){
+      var cand = subset[si];
+      if(used[cand]) continue;
+      var minN = 200, minAll = 200;
+      for(var ai=0; ai<adj[k].length; ai++){
+        var k2 = adj[k][ai];
+        if(colorOf[k2] >= 0) minN = Math.min(minN, perceptual(cand, colorOf[k2]));
+      }
+      for(var k3=0;k3<n;k3++){
+        if(colorOf[k3] >= 0) minAll = Math.min(minAll, perceptual(cand, colorOf[k3]));
+      }
+      var score = minN + minAll * 0.45;
+      if(score > bestScore){ bestScore = score; best = cand; }
+    }
+    colorOf[k] = best;
+    used[best] = true;
+  }
+
+  var out = [];
+  for(i=0;i<n;i++) out.push(PALETTE[colorOf[i]]);
+  return out;
+}
+
+/* ============ 交互 ============ */
+var dragging = false, dragMode = null, lastIdx = -1;
+var lastTapIdx = -1, lastTapT = 0;
+
+function idxFromPoint(clientX, clientY){
+  var rect = board.getBoundingClientRect();
+  if(clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return -1;
+  var pad = parseFloat(board.style.padding || 0);
+  var inner = rect.width - pad*2;
+  if(inner <= 0) return -1;
+  var n = S.n;
+  var c = Math.floor((clientX - rect.left - pad) / inner * n);
+  var r = Math.floor((clientY - rect.top - pad) / inner * n);
+  if(c < 0 || c >= n || r < 0 || r >= n) return -1;
+  return r*n + c;
+}
+
+function locked(i){
+  return S.revealed.has(i) || S.wrong.has(i);
+}
+
+function applyMark(i, mode){
+  if(S.ended || locked(i)) return;
+  var mk = S.marks.get(i);
+  if(mk && mk.fixed) return;          // 固定格跳过
+  if(mode === "mark"){
+    if(!mk) { S.marks.set(i, {fixed:false}); paintCell(i); }
+  }else if(mode === "unmark"){
+    if(mk && !mk.fixed){ S.marks.delete(i); paintCell(i); }
+  }
+}
+
+function attemptCat(i){
+  if(S.ended) return;
+  if(locked(i)) return;
+  if(S.cats.has(i)){
+    S.marks.delete(i);
+    S.revealed.add(i);
+    paintCell(i);
+    renderHUD();
+    if(S.revealed.size === S.n) endGame("win");
+  }else{
+    S.marks.delete(i);
+    S.wrong.add(i);
+    paintCell(i);
+    S.lives--;
+    if(S.lives <= 0){
+      S.lives = 0;
+      renderHUD();
+      endGame("lose");
+      return;
+    }
+    renderHUD();
+  }
+}
+
+board.addEventListener("contextmenu", function(e){
+  e.preventDefault();
+  if(S.ended) return;
+  var i = idxFromPoint(e.clientX, e.clientY);
+  if(i < 0) return;
+  var mk = S.marks.get(i);
+  if(mk && mk.fixed){
+    S.marks.set(i, {fixed:false});
+    paintCell(i);
+  }
+});
+
+board.addEventListener("pointerdown", function(e){
+  if(S.ended || !S.reg) return;
+  if(e.button && e.button !== 0) return;
+  var i = idxFromPoint(e.clientX, e.clientY);
+  if(i < 0) return;
+  try{ if(board.setPointerCapture) board.setPointerCapture(e.pointerId); }catch(err){}
+
+  var now = Date.now();
+  if(lastTapIdx === i && now - lastTapT < 340){
+    lastTapIdx = -1; lastTapT = 0;
+    dragging = false;
+    attemptCat(i);
+    return;
+  }
+  lastTapIdx = i; lastTapT = now;
+
+  if(locked(i)) return;
+  var mk = S.marks.get(i);
+  if(mk && mk.fixed) { dragging = false; dragMode = null; return; }
+
+  dragging = true;
+  lastIdx = i;
+  dragMode = (mk ? "unmark" : "mark");
+  applyMark(i, dragMode);
+});
+
+board.addEventListener("pointermove", function(e){
+  if(!dragging || S.ended) return;
+  var i = idxFromPoint(e.clientX, e.clientY);
+  if(i < 0 || i === lastIdx) return;
+  lastIdx = i;
+  var mk = S.marks.get(i);
+  if(mk && mk.fixed) return;
+  applyMark(i, dragMode);
+});
+
+function endDrag(){ dragging = false; dragMode = null; lastIdx = -1; }
+board.addEventListener("pointerup", endDrag);
+board.addEventListener("pointercancel", endDrag);
+window.addEventListener("pointerup", endDrag);
+board.addEventListener("dblclick", function(e){ e.preventDefault(); });
+
+/* ============ 按钮 ============ */
+btnFix.addEventListener("click", function(){
+  if(S.ended) return;
+  S.marks.forEach(function(mk, i){
+    if(!mk.fixed){ mk.fixed = true; paintCell(i); }
+  });
+});
+
+btnUnfix.addEventListener("click", function(){
+  if(S.ended) return;
+  S.marks.forEach(function(mk, i){
+    if(mk.fixed){ mk.fixed = false; paintCell(i); }
+  });
+});
+
+btnClear.addEventListener("click", function(){
+  if(S.ended) return;
+  var list = [];
+  S.marks.forEach(function(mk, i){ if(!mk.fixed) list.push(i); });
+  list.forEach(function(i){ S.marks.delete(i); paintCell(i); });
+});
+
+var wipeArmed = 0;
+btnWipe.addEventListener("click", function(){
+  if(S.ended) return;
+  if(!wipeArmed){
+    wipeArmed = setTimeout(function(){ wipeArmed = 0; resetWipeBtn(); }, 1600);
+    btnWipe.classList.add("confirm");
+    btnWipe.textContent = "确认清空？";
+    return;
+  }
+  clearTimeout(wipeArmed); wipeArmed = 0; resetWipeBtn();
+  var list = [];
+  S.marks.forEach(function(mk, i){ list.push(i); });
+  list.forEach(function(i){ S.marks.delete(i); paintCell(i); });
+});
+function resetWipeBtn(){ btnWipe.classList.remove("confirm"); btnWipe.textContent = "清空标记"; }
+
+var quitArmed = 0;
+btnQuit.addEventListener("click", function(){
+  if(S.ended) return;
+  if(!quitArmed){
+    quitArmed = setTimeout(function(){ quitArmed = 0; resetQuitBtn(); }, 1300);
+    btnQuit.classList.add("confirm");
+    btnQuit.textContent = "确认认输？";
+    return;
+  }
+  clearTimeout(quitArmed); quitArmed = 0; resetQuitBtn();
+  endGame("quit");
+});
+function resetQuitBtn(){ btnQuit.classList.remove("confirm"); btnQuit.textContent = "认输"; }
+
+btnNew.addEventListener("click", function(){ startGame(S.levelIdx); });
+ovBtn.addEventListener("click", function(){ hideOverlay(); startGame(S.levelIdx); });
+
+/* ============ 遮罩 ============ */
+function showLoading(){
+  overlay.classList.add("on");
+  ovSpin.classList.remove("hide");
+  ovMetrics.style.display = "none";
+  ovBtn.style.display = "none";
+  ovTitle.innerHTML = '正在铺色块<span class="dots"></span>';
+  ovText.textContent = "每一局都要先确认「只有唯一解」，稍等一下下。";
+}
+function hideOverlay(){ overlay.classList.remove("on"); }
+function showResult(kind){
+  overlay.classList.add("on");
+  ovSpin.classList.add("hide");
+  ovMetrics.style.display = "flex";
+  ovBtn.style.display = "block";
+  var title = "恭喜通关", text = "";
+  if(kind === "win"){ title = "通关啦！"; text = "所有小猫都被你找出来了。"; }
+  else if(kind === "lose"){ title = "没有心了"; text = "红叉耗尽了生命值，猫咪位置已揭晓。"; }
+  else { title = "已认输"; text = "猫咪位置已揭晓，下一局再来。"; }
+  ovTitle.textContent = title;
+  ovText.textContent = text;
+  ovMetrics.innerHTML =
+    '<div class="m">用时<b>' + fmtTime(S.elapsed) + '</b></div>' +
+    '<div class="m">找到<b>' + S.foundAtEnd + " / " + S.n + '</b></div>';
+}
+
+/* ============ 开局 ============ */
+function setBusy(b){
+  [btnFix, btnUnfix, btnClear, btnWipe, btnNew, btnQuit].forEach(function(el){ el.disabled = !!b; });
+  board.classList.toggle("generating", b);
+}
+
+function validate(n, reg, catsArr){
+  if(!reg || reg.length !== n*n) return false;
+  var seen = new Int32Array(n), has = 0;
+  for(var i=0;i<n*n;i++){
+    var k = reg[i];
+    if(k < 0 || k >= n) return false;
+    if(seen[k] === 0) has++;
+    seen[k]++;
+  }
+  if(has !== n) return false;
+  // 每块连通 + 恰 1 猫
+  var cats = new Set(catsArr);
+  if(cats.size !== n) return false;
+  var catCnt = new Int32Array(n);
+  cats.forEach(function(c){ catCnt[reg[c]]++; });
+  for(var k2=0;k2<n;k2++){ if(catCnt[k2] !== 1) return false; }
+  for(var k3=0;k3<n;k3++){
+    var start = -1, total = 0;
+    for(var j=0;j<n*n;j++) if(reg[j] === k3){ total++; if(start < 0) start = j; }
+    var vis = new Uint8Array(n*n), q = [start]; vis[start] = 1; var reach = 1;
+    while(q.length){
+      var cur = q.pop(), r = Math.floor(cur/n), c = cur % n;
+      var nbs = [];
+      if(r>0) nbs.push(cur-n);
+      if(r<n-1) nbs.push(cur+n);
+      if(c>0) nbs.push(cur-1);
+      if(c<n-1) nbs.push(cur+1);
+      for(var t=0;t<nbs.length;t++){
+        var nb = nbs[t];
+        if(reg[nb] === k3 && !vis[nb]){ vis[nb] = 1; q.push(nb); reach++; }
+      }
+    }
+    if(reach !== total) return false;
+  }
+  // 行列为排列 + 相邻两行不相邻
+  var rowCnt = new Int32Array(n), colCnt = new Int32Array(n), colOfRow = new Int32Array(n).fill(-1);
+  cats.forEach(function(idx){
+    var r = Math.floor(idx/n), c = idx % n;
+    rowCnt[r]++; colCnt[c]++; colOfRow[r] = c;
+  });
+  for(var q=0;q<n;q++){ if(rowCnt[q] !== 1 || colCnt[q] !== 1) return false; }
+  for(var r3=0;r3<n-1;r3++){ if(Math.abs(colOfRow[r3] - colOfRow[r3+1]) < 2) return false; }
+  return true;
+}
+
+function requestBoard(n){
+  return new Promise(function(resolve, reject){
+    var budget = n >= 20 ? 5500 : (n >= 15 ? 3200 : 1600);
+    var seed = Math.floor(Math.random() * 2147483647);
+    var settled = false;
+
+    function finish(data){
+      if(settled) return;
+      if(!data || !data.reg){ settled = true; reject(new Error("生成失败")); return; }
+      if(validate(n, data.reg, data.cats)){
+        settled = true;
+        resolve({reg: data.reg, cats: data.cats, ms: data.ms});
+      }else{
+        settled = true;
+        reject(new Error("校验未通过"));
+      }
+    }
+    function runSync(){
+      setTimeout(function(){
+        if(settled) return;
+        try{
+          var r = GEN.generate(n, seed, budget, {});
+          if(!r || !r.reg){ settled = true; reject(new Error("生成失败")); return; }
+          finish({reg: Array.prototype.slice.call(r.reg),
+                  cats: Array.from(r.cats),
+                  ms: r.ms});
+        }catch(e){
+          settled = true;
+          reject(e);
+        }
+      }, 30);
+    }
+
+    if(workerOk && worker){
+      pending = {
+        ok: finish,
+        fail: function(e){
+          workerOk = false;
+          if(settled) return;
+          runSync();
+        }
+      };
+      worker.postMessage({n: n, seed: seed, budget: budget});
+      // 看门狗：worker 没回音就退回主线程
+      setTimeout(function(){
+        if(settled || !pending) return;
+        pending = null;
+        workerOk = false;
+        runSync();
+      }, budget + 1500);
+    }else{
+      runSync();
+    }
+  });
+}
+
+function recentKey(){ return "catgame.recent.v1"; }
+function loadRecent(){
+  try{ return JSON.parse(localStorage.getItem(recentKey()) || "[]"); }catch(e){ return []; }
+}
+function saveRecent(h){
+  try{
+    var arr = loadRecent();
+    arr.push(h);
+    while(arr.length > 20) arr.shift();
+    localStorage.setItem(recentKey(), JSON.stringify(arr));
+  }catch(e){}
+}
+function catHash(reg, cats){
+  var s = "";
+  cats.forEach(function(i){ s += i.toString(36) + ":" + reg[i].toString(36) + ","; });
+  return s;
+}
+
+function startGame(levelIdx){
+  S.levelIdx = levelIdx;
+  var lv = LEVELS[levelIdx];
+  var mobile = isMobile();
+  var n = mobile ? 10 : lv.n;
+  S.hearts = mobile ? LEVELS[1].hearts : lv.hearts;
+  S.n = n;
+  S.lives = S.hearts;
+  S.revealed = new Set();
+  S.wrong = new Set();
+  S.marks = new Map();
+  S.elapsed = 0;
+  S.ended = false;
+  S.reg = null; S.cats = null;
+
+  stopTimer();
+  renderLevels();
+  renderHUD();
+  resetWipeBtn(); resetQuitBtn(); wipeArmed = 0; quitArmed = 0;
+  setBusy(true);
+  board.innerHTML = "";
+  rnums.innerHTML = ""; cnums.innerHTML = "";
+  // 小棋盘生成很快，遮罩延迟 150ms 才出现，避免闪一下；大棋盘会阻塞，先亮遮罩
+  var loadTimer = 0;
+  if(n >= 15) showLoading();
+  else loadTimer = setTimeout(showLoading, 150);
+
+  var attempts = 0;
+  function go(){
+    attempts++;
+    requestBoard(n).then(function(res){
+      var h = catHash(res.reg, new Set(res.cats));
+      var recent = loadRecent();
+      if(attempts < 3 && recent.indexOf(h) >= 0){ go(); return; }
+      saveRecent(h);
+      clearTimeout(loadTimer);
+      // 落地
+      S.reg = res.reg;
+      S.cats = new Set(res.cats);
+      S.colors = assignColors(n, S.reg);
+      buildBoard();
+      renderHUD();
+      setBusy(false);
+      hideOverlay();
+      // 等一帧再开始计时，确保棋盘已经可见
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){ startTimer(); });
+      });
+    }).catch(function(err){
+      if(attempts < 3){ go(); }
+      else {
+        clearTimeout(loadTimer);
+        setBusy(false);
+        overlay.classList.add("on");
+        ovSpin.classList.add("hide");
+        ovTitle.textContent = "这局没能生成";
+        ovText.textContent = "再点一次「重开一局」试试。";
+        ovMetrics.style.display = "none";
+        ovBtn.style.display = "block";
+      }
+    });
+  }
+  go();
+}
+
+/* ============ 结束 ============ */
+function endGame(kind){
+  if(S.ended) return;
+  S.ended = true;
+  stopTimer();
+  S.foundAtEnd = S.revealed.size;
+  // 翻出全部猫咪
+  if(S.cats){
+    S.cats.forEach(function(i){
+      if(!S.revealed.has(i)){
+        S.revealed.add(i);
+        paintCell(i);
+      }
+    });
+  }
+  renderHUD();
+  setBusy(true);
+  renderLevels();
+  btnNew.disabled = false;
+  btnNew.classList.add("primary");
+  showResult(kind);
+}
+
+/* ============ 窗口变化 ============ */
+var resizeTimer = 0;
+window.addEventListener("resize", function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function(){
+    if(!S.reg || !S.cells.length) return;
+    buildBoard();
+  }, 160);
+});
+
+/* ============ 自测（地址后加 ?selftest=1 触发） ============ */
+function _sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function _pt(i){
+  var rect = board.getBoundingClientRect();
+  var pad = parseFloat(board.style.padding || 0);
+  var inner = rect.width - pad*2;
+  var n = S.n, cell = inner / n;
+  var r = Math.floor(i/n), c = i % n;
+  return {x: rect.left + pad + cell*(c+0.5), y: rect.top + pad + cell*(r+0.5)};
+}
+function _fire(type, i, extra){
+  var p = _pt(i);
+  var ev = new PointerEvent(type, Object.assign({
+    bubbles:true, cancelable:true, pointerId:1, pointerType:"mouse",
+    clientX:p.x, clientY:p.y, button:0, buttons:1
+  }, extra || {}));
+  board.dispatchEvent(ev);
+}
+function _tap(i){ _fire("pointerdown", i); _fire("pointerup", i); }
+function _drag(a, b, c){
+  _fire("pointerdown", a);
+  _fire("pointermove", b, {bubbles:true});
+  _fire("pointermove", c, {bubbles:true});
+  _fire("pointerup", c);
+}
+function _dbl(i){ _tap(i); return _sleep(90).then(function(){ _tap(i); }); }
+function _rightClick(i){
+  var p = _pt(i);
+  board.dispatchEvent(new MouseEvent("contextmenu", {bubbles:true, cancelable:true, clientX:p.x, clientY:p.y}));
+}
+
+function runSelfTest(){
+  var out = [], fails = 0;
+  function check(name, cond){ out.push((cond ? "✓ " : "✗ ") + name); if(!cond) fails++; }
+  var box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:8px;top:8px;z-index:9999;background:#fff;border:1px solid #ccc;"
+    + "padding:8px 10px;font:12px/1.55 monospace;white-space:pre;max-height:96vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,.15)";
+  box.textContent = "自测启动…";
+  document.body.appendChild(box);
+  function flush(){ box.textContent = "自测结果（✗ 数量：" + fails + "）\n" + out.join("\n"); }
+
+  (function waitReady(){
+    if(S.reg && S.cells.length){
+      go();
+    }else{
+      setTimeout(waitReady, 200);
+    }
+  })();
+
+  async function go(){
+    var n = S.n;
+    // 1 单击标叉
+    var a = 0;
+    while(S.cats.has(a)) a++;
+    _tap(a); await _sleep(60);
+    check("单击空格 → 标叉", S.marks.has(a));
+
+    // 2 拖动连续标叉
+    var b = 1; while(S.cats.has(b) || b === a) b++;
+    var c = 2; while(S.cats.has(c) || c === a || c === b) c++;
+    _drag(b, c, b+1); await _sleep(60);
+    check("拖动 → 连续标叉", S.marks.size >= 3);
+
+    // 3 单击已标叉格 → 取消
+    await _sleep(400);
+    _tap(b); await _sleep(60);
+    check("单击已标叉格 → 取消标记", !S.marks.has(b));
+
+    // 4 双击正确格 → 翻出猫
+    var cat = S.cats.values().next().value;
+    await _sleep(400);
+    await _dbl(cat); await _sleep(80);
+    check("双击猫位 → 翻出（剩余 -1）", S.revealed.has(cat) && (n - S.revealed.size) === n - 1);
+
+    // 5 双击错误格 → 红叉 + 扣心 + 锁定
+    var w = 0; while(S.cats.has(w) || S.revealed.has(w) || S.wrong.has(w)) w++;
+    var lives0 = S.lives;
+    await _sleep(400);
+    await _dbl(w); await _sleep(80);
+    check("双击非猫格 → 红叉 + 扣 1 心", S.wrong.has(w) && S.lives === lives0 - 1);
+    await _sleep(400);
+    var size0 = S.marks.size;
+    _tap(w); await _sleep(60);
+    check("红叉格已锁定，点击无反应", S.marks.size === size0 && S.wrong.has(w));
+
+    // 6 固定 → 清除保留 → 清空清掉
+    var m1 = 5; while(S.cats.has(m1) || S.revealed.has(m1) || S.wrong.has(m1)) m1++;
+    _tap(m1); await _sleep(60);
+    btnFix.click(); await _sleep(60);
+    check("固定标记 → 加金框", !!(S.marks.get(m1) && S.marks.get(m1).fixed));
+    btnClear.click(); await _sleep(60);
+    check("清除标记 → 固定格保留", S.marks.has(m1));
+    btnUnfix.click(); await _sleep(60);
+    check("解除固定 → 金框取消", !!(S.marks.get(m1) && !S.marks.get(m1).fixed));
+
+    // 7 右键解固
+    btnFix.click(); await _sleep(60);
+    _rightClick(m1); await _sleep(60);
+    check("右键固定格 → 解除固定", !!(S.marks.get(m1) && !S.marks.get(m1).fixed));
+
+    // 8 清空标记：连固定一起清
+    btnFix.click(); await _sleep(60);
+    btnWipe.click(); await _sleep(40); btnWipe.click(); await _sleep(80);
+    check("清空标记 → 连金框一起清", S.marks.size === 0);
+
+    // 9 已翻出的猫不会被清
+    btnFix.click(); btnClear.click(); btnWipe.click(); await _sleep(40); btnWipe.click(); await _sleep(80);
+    check("已翻出的猫不被任何按钮清掉", S.revealed.has(cat));
+
+    // 10 认输二次确认
+    btnQuit.click(); await _sleep(60);
+    check("认输第一次点击 → 进入确认态", btnQuit.textContent === "确认认输？");
+    btnQuit.click(); await _sleep(120);
+    check("认输二次点击 → 对局结束", S.ended === true);
+    check("结束时揭晓全部猫位", S.revealed.size === n);
+    check("结束后仅剩重开可点", btnNew.disabled === false && btnFix.disabled === true);
+    flush();
+  }
+}
+if(/[?&]selftest=1/.test(location.search)) setTimeout(runSelfTest, 300);
+
+
+/* ============ 启动 ============ */
+renderLevels();
+renderHUD();
+(function(){
+  var startIdx = 1;
+  try{
+    var m = /[?&]n=(\d+)/.exec(location.search);
+    if(m){
+      var want = parseInt(m[1], 10);
+      for(var i=0;i<LEVELS.length;i++) if(LEVELS[i].n === want) startIdx = i;
+    }
+  }catch(e){}
+  startGame(startIdx);
+})();
+</script>
+</body>
+</html>
