@@ -44,7 +44,6 @@ h1{
   color:var(--ink);
 }
 h1 .paw{color:var(--gold)}
-.sub{margin:6px 0 0;font-size:clamp(11px,2.6vw,13px);color:var(--ink-3);letter-spacing:.04em}
 
 /* 难度 */
 .lvrow{display:flex;gap:8px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:14px auto 12px;max-width:620px}
@@ -238,7 +237,6 @@ body.has-endbar{padding-bottom:8px}
 @media (max-width:767px){
   body{padding:12px 10px 22px}
   header{margin-bottom:8px}
-  .sub{display:none}
   .lvrow{display:none}
   .levels{display:none}
   .hud{padding:7px 12px;border-radius:14px;max-width:none;margin:0 2px}
@@ -272,7 +270,6 @@ body.has-endbar{padding-bottom:8px}
 <div class="wrap">
   <header>
     <h1>数独哈基米</h1>
-    <p class="sub">每种颜色一只猫 · 每行每列一只猫 · 猫的周围不能有猫</p>
   </header>
 
   <div class="lvrow">
@@ -320,8 +317,8 @@ body.has-endbar{padding-bottom:8px}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N ≥ 18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N ≤ 17</b> 只翻猫，标记全靠自己。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N&nbsp;≥&nbsp;18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> 只翻猫。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N&nbsp;≥&nbsp;18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> 只翻猫。</span>
   </p>
 </div>
 
