@@ -687,9 +687,10 @@ if (typeof module!=='undefined') module.exports={generate,deduce,growRegions,gen
 
 <script>
 /* ============ 常量 ============ */
-var PALETTE = ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296",
-               "#72d5be","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace",
-               "#d779ce","#de91bb","#d06283","#eac5b8"];
+var PALETTE = ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff",
+               "#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737",
+               "#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce",
+               "#fc6d73","#a99b62","#bd8ac1","#a9c7ff","#f9ba83"];
 var LEVELS = [
   {n:7,  name:"简单"},
   {n:10, name:"普通"},
@@ -1060,22 +1061,22 @@ function paintCell(i){
 
 /* ============ 配色：每一档 N（5~20）各预设一套差异最大的颜色（常量），只按邻接关系分配 ============ */
 var PALETTE_SETS = {
-  5:  ["#68d062","#5ac4ce","#5e5ace","#d06283","#eac5b8"],
-  6:  ["#deecc0","#68d062","#5ac4ce","#5e5ace","#d06283","#eac5b8"],
-  7:  ["#deecc0","#68d062","#5ac4ce","#c0d1ec","#5e5ace","#d06283","#eac5b8"],
-  8:  ["#cea55a","#deecc0","#68d062","#5ac4ce","#c0d1ec","#5e5ace","#d06283","#eac5b8"],
-  9:  ["#cea55a","#deecc0","#68d062","#5ac4ce","#c0d1ec","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  10: ["#cea55a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  11: ["#cea55a","#cdce5a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  12: ["#cea55a","#cdce5a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5a7ece","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  13: ["#cea55a","#cdce5a","#deecc0","#68d062","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  14: ["#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  15: ["#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#d06283","#eac5b8"],
-  16: ["#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
-  17: ["#de9196","#cea55a","#cdce5a","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
-  18: ["#de9196","#cea55a","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
-  19: ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"],
-  20: ["#de9196","#cea55a","#dcb489","#cdce5a","#c5dc89","#deecc0","#68d062","#6ad296","#72d5be","#5ac4ce","#c0ece0","#c0d1ec","#5a9dce","#5a7ece","#b3b0e8","#5e5ace","#d779ce","#de91bb","#d06283","#eac5b8"]
+  5 : ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff"],
+  6 : ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7"],
+  7 : ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5"],
+  8 : ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f"],
+  9 : ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0"],
+  10: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737"],
+  11: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba"],
+  12: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3"],
+  13: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d"],
+  14: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8"],
+  15: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce"],
+  16: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce","#fc6d73"],
+  17: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce","#fc6d73","#a99b62"],
+  18: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce","#fc6d73","#a99b62","#bd8ac1"],
+  19: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce","#fc6d73","#a99b62","#bd8ac1","#a9c7ff"],
+  20: ["#aaef85","#f66aa8","#499dff","#d28d30","#82ecff","#d2bdf7","#ffb4a5","#30af7f","#eddda0","#82a737","#00abba","#7ef1d3","#ed7b4d","#9b8df8","#fdb1ce","#fc6d73","#a99b62","#bd8ac1","#a9c7ff","#f9ba83"]
 };
 var HEX_INDEX = (function(){
   var m = {};
