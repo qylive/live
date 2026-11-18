@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<link rel="preload" as="image" href="welcome-emoji.png">
 <meta name="theme-color" content="#faf7f2">
-<title>数独哈基米</title>
+<title>数独哈基苑</title>
 <style>
 :root{
   --ink:#2b2440;
@@ -171,6 +172,8 @@ h1 .paw{color:var(--gold)}
 .cell.fixed .x i{background:#111;box-shadow:none}
 
 .cat-svg{width:82%;height:82%;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.18))}
+/* 翻出来的苑小苑：直接用项目里的欢迎图（透明底 PNG），不垫底色 */
+.cell .yuan{width:96%;height:96%;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-drag:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.16))}
 
 /* 按钮 */
 .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-width:620px;margin:18px auto 0}
@@ -264,12 +267,13 @@ body.has-endbar{padding-bottom:8px}
   .spinner{animation-duration:3s}
   .cell{transition:none}
 }
+.nw{white-space:nowrap}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>数独哈基米</h1>
+    <h1>数独哈基苑</h1>
   </header>
 
   <div class="lvrow">
@@ -285,20 +289,20 @@ body.has-endbar{padding-bottom:8px}
   </div>
 
   <div class="hud">
-    <div class="item"><span>剩余小猫</span><span class="val accent" id="left">—</span></div>
+    <div class="item"><span>剩余苑小苑</span><span class="val accent" id="left">—</span></div>
     <div class="hearts" id="hearts" aria-label="生命值"></div>
     <div class="item"><span>用时</span><span class="val" id="timer">00:00</span></div>
   </div>
 
   <div class="rules">
-    <div class="rule"><div class="t">每种颜色</div><div class="b"><span class="dot"></span>仅 1 只猫</div></div>
-    <div class="rule"><div class="t">每行每列</div><div class="b"><span class="dot"></span>仅 1 只猫</div></div>
-    <div class="rule"><div class="t">猫的四周</div><div class="b"><span class="dot"></span>不能有猫</div></div>
+    <div class="rule"><div class="t">每种颜色</div><div class="b"><span class="dot"></span>仅 1 个苑小苑</div></div>
+    <div class="rule"><div class="t">每行每列</div><div class="b"><span class="dot"></span>仅 1 个苑小苑</div></div>
+    <div class="rule"><div class="t">苑小苑四周</div><div class="b"><span class="dot"></span>不能有苑小苑</div></div>
   </div>
   <div class="rules-mobile">
-    <div class="rm">每种颜色<b>仅1只猫</b></div>
-    <div class="rm">每行每列<b>仅1只猫</b></div>
-    <div class="rm">猫四周<b>不能有猫</b></div>
+    <div class="rm">每种颜色<b>仅1个苑小苑</b></div>
+    <div class="rm">每行每列<b>仅1个苑小苑</b></div>
+    <div class="rm">四周<b>不能有苑小苑</b></div>
   </div>
 
   <div class="board-shell" id="shell">
@@ -317,8 +321,8 @@ body.has-endbar{padding-bottom:8px}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N&nbsp;≥&nbsp;18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> 只翻猫。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>放猫；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N&nbsp;≥&nbsp;18</b> 时翻出小猫，同行、同列、同色块与猫周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> 只翻猫。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>翻出苑小苑；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N&nbsp;≥&nbsp;18</b> 时<span class="nw">翻出苑小苑</span>，同行、同列、同色块与它周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> <span class="nw">只翻苑小苑</span>。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>翻出苑小苑；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N&nbsp;≥&nbsp;18</b> 时<span class="nw">翻出苑小苑</span>，同行、同列、同色块与它周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> <span class="nw">只翻苑小苑</span>。</span>
   </p>
 </div>
 
@@ -329,14 +333,14 @@ body.has-endbar{padding-bottom:8px}
     <p id="ovText"></p>
     <div class="metrics" id="ovMetrics" style="display:none"></div>
     <div class="panel-acts" id="ovActs" style="display:none">
-      <button class="btn" id="ovPeek">看棋盘上的猫</button>
+      <button class="btn" id="ovPeek">看棋盘上的苑小苑</button>
       <button class="btn primary" id="ovBtn">重开一局</button>
     </div>
   </div>
 </div>
 
 <div class="endbar" id="endbar">
-  <span class="endbar-t">本局已结束 · 猫咪位置已揭晓</span>
+  <span class="endbar-t">本局已结束 · 苑小苑位置已揭晓</span>
   <button class="btn" id="endbarBack">查看结算</button>
   <button class="btn primary" id="endbarNew">重开一局</button>
 </div>
@@ -716,6 +720,11 @@ var CAT_SVG = '<svg class="cat-svg" viewBox="0 0 100 100" aria-hidden="true">'
   + '<path d="M26 60 h-9 M26 66 h-9 M74 60 h9 M74 66 h9" stroke="#8a5a22" stroke-width="1.8" stroke-linecap="round" opacity=".65"/>'
   + '</svg>';
 
+var YUAN_SRC = "welcome-emoji.png";
+var YUAN_HTML = '<img class="yuan" src="' + YUAN_SRC + '" alt="苑小苑" draggable="false">';
+/* 预热一次，避免第一次翻出时闪空 */
+(function(){ try{ var warm = new Image(); warm.src = YUAN_SRC; }catch(e){} })();
+
 var HEART_SVG = '<svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.1-8-11A4.6 4.6 0 0 1 12 6.3 4.6 4.6 0 0 1 20 10c0 5.9-8 11-8 11z"/></svg>';
 
 /* ============ 生成核心（与 worker 同源） ============ */
@@ -1029,7 +1038,13 @@ function paintCell(i){
   else if(mkHere && mkHere.fixed) cls += " fixed";
   el.className = cls;
   if(S.revealed.has(i)){
-    el.innerHTML = CAT_SVG;
+    el.innerHTML = YUAN_HTML;
+    var yimg = el.firstChild;
+    if(yimg && yimg.nodeName === "IMG"){
+      yimg.addEventListener("error", function(){
+        el.innerHTML = CAT_SVG;   // 图片缺失时退回旧猫脸，棋盘照样能玩
+      }, {once:true});
+    }
   }else if(S.wrong.has(i)){
     el.innerHTML = '<span class="x red"><i></i><i></i></span>';
   }else if(S.marks.has(i)){
@@ -1356,9 +1371,9 @@ function showResult(kind){
   ovMetrics.style.display = "flex";
   ovActs.style.display = "flex";
   var title = "恭喜通关", text = "";
-  if(kind === "win"){ title = "通关啦！"; text = "所有小猫都被你找出来了。"; }
-  else if(kind === "lose"){ title = "没有心了"; text = "红叉耗尽了生命值。猫咪位置已在棋盘上揭晓，点「看棋盘上的猫」慢慢对照。"; }
-  else { title = "已认输"; text = "猫咪位置已在棋盘上揭晓，点「看棋盘上的猫」慢慢对照。"; }
+  if(kind === "win"){ title = "通关啦！"; text = "所有苑小苑都被你找出来了。"; }
+  else if(kind === "lose"){ title = "没有心了"; text = "红叉耗尽了生命值。苑小苑的位置已在棋盘上揭晓，点「看棋盘上的苑小苑」慢慢对照。"; }
+  else { title = "已认输"; text = "苑小苑的位置已在棋盘上揭晓，点「看棋盘上的苑小苑」慢慢对照。"; }
   ovTitle.textContent = title;
   ovText.textContent = text;
   ovMetrics.innerHTML =
@@ -1717,6 +1732,8 @@ function runSelfTest(){
     await _sleep(400);
     await _dbl(cat); await _sleep(80);
     check("双击猫位 → 翻出（剩余 -1）", S.revealed.has(cat) && (n - S.revealed.size) === n - 1);
+    var yEl = board.querySelector(".cell.cat .yuan");
+    check("翻出的格子渲染苑小苑欢迎图（" + (yEl ? yEl.getAttribute("src") : "null") + "）", !!yEl && /welcome-emoji[.]png/.test(yEl.getAttribute("src")));
 
     // 4b 翻猫后的自动排除：仅在 N ≥ AUTO_FIX_MIN_N 提供；小盘只翻猫，标记全手动
     var expList = exclusionCells(cat);
@@ -1821,10 +1838,10 @@ function runSelfTest(){
     check("结束时逐格揭晓全部猫位", S.revealed.size === n);
     check("结束后仅剩重开可点", btnNew.disabled === false && btnFix.disabled === true);
     check("结束后自定义下拉禁用", ddBtn.disabled === true && !ddPop.classList.contains("on"));
-    check("结算面板带「看棋盘上的猫」按钮（不再挡住猫位）",
+    check("结算面板带「看棋盘上的苑小苑」按钮（不再挡住揭晓位）",
           overlay.classList.contains("on") && ovActs.style.display === "flex");
     ovPeek.click(); await _sleep(150);
-    check("点「看棋盘上的猫」→ 关掉遮罩并弹出已结束浮条",
+    check("点「看棋盘上的苑小苑」→ 关掉遮罩并弹出已结束浮条",
           !overlay.classList.contains("on") && endbar.classList.contains("on"));
     check("看棋盘状态收起失效的按钮行与提示（浮条不与内容重叠）",
           document.body.classList.contains("has-endbar") &&
