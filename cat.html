@@ -320,10 +320,9 @@ html.dark{
   background:#141219;
 }
 html.dark body{
-  background:
-    radial-gradient(circle at 12% 8%, #261f2c 0%, rgba(38,31,44,0) 42%),
-    radial-gradient(circle at 88% 0%, #1b2130 0%, rgba(27,33,48,0) 40%),
-    var(--bg);
+  /* 暗色底一律用纯色：深色下大半径径向柔光只有极少的色阶过渡，
+     会在屏幕上被放大成一圈圈同心「波纹」（马赫带），久看头晕，故不再使用 */
+  background:var(--bg);
 }
 html.dark .lvsel,html.dark .lv,html.dark .btn,html.dark .sw,html.dark .panel,html.dark .ddpop{background:var(--card)}
 html.dark .lv[aria-pressed="true"]{background:#4b4468;border-color:#4b4468;color:#fff}
