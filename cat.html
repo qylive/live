@@ -401,10 +401,10 @@ html.dark body.cb .cell.fixed{background:#000 !important}
   </div>
 
   <div class="actions">
-    <button class="btn" id="btnFix">固定标记</button>
-    <button class="btn" id="btnUnfix">解除固定</button>
-    <button class="btn" id="btnClear">清除标记</button>
-    <button class="btn" id="btnWipe">清空标记</button>
+    <button class="btn" id="btnFix" title="把已画的 X 全部固定（固定后「清除标记」不会清掉）">固定标记</button>
+    <button class="btn" id="btnUnfix" title="把手动固定的 X 变回临时标记；翻苑小苑自动固定的不可解除">解除固定</button>
+    <button class="btn" id="btnClear" title="只清还没固定的 X，固定的一律保留">清除标记</button>
+    <button class="btn" id="btnWipe" title="清空所有手动标记（含手动固定的）；翻苑小苑自动固定的仍保留">清空标记</button>
     <button class="btn" id="btnNew">重开一局</button>
     <button class="btn warn" id="btnQuit">认输</button>
   </div>
@@ -1321,8 +1321,9 @@ function autoExclude(ci){
     var i = list[q];
     if(S.revealed.has(i) || S.wrong.has(i)) continue;      // 已翻猫 / 红叉锁定：不动
     var mk = S.marks.get(i);
-    if(mk && mk.fixed && !mk.auto) continue;               // 玩家手动固定的：不动
-    if(mk && mk.fixed && mk.auto){ cnt++; continue; }
+    if(mk && mk.fixed && mk.auto){ cnt++; continue; }      // 已经是自动固定，跳过重绘
+    // 规则此刻已经证明这格没有苑小苑：哪怕是玩家先前手动标、手动固定的，也一律升级成「自动固定」。
+    // 否则它仍被当成手动标记，点「清除标记 / 清空标记」时会连翻猫四周、同块、同行列的排除区一起被清掉。
     S.marks.set(i, {fixed:true, auto:true});
     paintCell(i);
     cnt++;
@@ -1899,6 +1900,34 @@ function runSelfTest(){
         if(mk2 && mk2.auto) anyAuto++;
       }
       check("N<18（当前 " + S.n + "×" + S.n + "）→ 翻猫只翻猫，不自动打叉/固定（" + expList.length + " 格应全留白）", anyAuto === 0);
+    }
+
+    // 4c 回归：翻猫前手动固定过的同块格，翻猫时必须升级为「自动固定」，
+    // 否则它仍是 auto=false，点清除/清空标记会把规则排除区一起带走（曾出现该 BUG）
+    if(AUTO){
+      var c2 = null, cell2 = -1;
+      var catList = Array.from(S.cats).sort(function(x,y){ return x - y; });
+      for(var ci2=0; ci2<catList.length && cell2 < 0; ci2++){
+        var cc2 = catList[ci2];
+        if(cc2 === cat || S.revealed.has(cc2)) continue;
+        for(var t2=0;t2<n*n;t2++){
+          if(S.reg[t2] === S.reg[cc2] && t2 !== cc2 && !S.revealed.has(t2) && !S.wrong.has(t2) && !S.marks.has(t2)){
+            c2 = cc2; cell2 = t2; break;
+          }
+        }
+      }
+      if(cell2 >= 0 && c2 != null){
+        applyMark(cell2, "mark"); await _sleep(30);
+        btnFix.click(); await _sleep(30);
+        var wasManualFixed = !!(S.marks.get(cell2) && S.marks.get(cell2).fixed && !S.marks.get(cell2).auto);
+        await _dbl(c2); await _sleep(100);
+        var mkC2 = S.marks.get(cell2);
+        check("翻猫前手动固定的同块格 → 翻猫后升级为自动固定（不再被清空标记误删）",
+              wasManualFixed && S.revealed.has(c2) && !!(mkC2 && mkC2.fixed && mkC2.auto));
+        btnClear.click(); await _sleep(50);
+        check("清除标记不带走规则排除区（同块格仍在）",
+              !!(S.marks.get(cell2) && S.marks.get(cell2).fixed));
+      }
     }
 
     // 5 双击错误格 → 红叉 + 扣心 + 锁定
