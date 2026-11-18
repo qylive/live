@@ -35,7 +35,7 @@ body{
   padding:18px 16px 28px;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:980px;margin:0 auto}
+.wrap{max-width:1240px;margin:0 auto}
 header{text-align:center;margin-bottom:14px}
 h1{
   margin:0;
@@ -263,6 +263,43 @@ body.has-endbar{padding-bottom:8px}
 .dots::after{content:"";animation:dots 1.2s steps(4,end) infinite}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}100%{content:"..."}}
 
+/* ============ 布局：宽屏把「读数 + 操作 + 规则」挪到棋盘右侧，按钮贴着棋盘不用滚到页底 ============ */
+.layout{display:flex;flex-direction:column;gap:10px}
+.side{display:contents}      /* 窄屏：HUD/按钮/规则按 order 排回原来的上下结构 */
+@media (max-width:960px){
+  .hud{order:1}
+  .rules-mobile{order:2}
+  .board-shell{order:3}
+  .actions{order:4}
+  .rules{order:5}
+}
+@media (min-width:961px){
+  .layout{
+    display:grid;grid-template-columns:minmax(0,max-content) 236px;
+    gap:16px 20px;align-items:start;justify-content:center;
+  }
+  .board-shell{grid-column:1;grid-row:1;justify-self:center;margin:0}
+  .side{
+    grid-column:2;grid-row:1;
+    display:flex;flex-direction:column;gap:12px;
+    position:sticky;top:16px;      /* 棋盘再长，按钮也留在视野里 */
+  }
+  /* 侧栏 HUD 竖排，数字放大便于扫读 */
+  .side .hud{flex-direction:column;align-items:stretch;gap:7px;max-width:none;margin:0;padding:11px 13px}
+  .side .hud .item{justify-content:space-between;font-size:11.5px}
+  .side .hud .val{font-size:19px}
+  .side .hud .hearts{justify-content:flex-start;gap:4px}
+  /* 操作按钮竖排、整行可点，鼠标活动距离从「整块棋盘」缩到「棋盘右侧几十像素」 */
+  .side .actions{grid-template-columns:1fr;gap:8px;max-width:none;margin:0}
+  .side .actions .btn{padding:11px 10px;font-size:13px}
+  .side .actions .btn.warn{margin-top:2px}
+  /* 规则三卡改窄卡竖排 */
+  .side .rules{grid-template-columns:1fr;gap:8px;max-width:none;margin:0}
+  .side .rule{padding:8px 11px;text-align:left;border-radius:13px}
+  .side .rule .t{font-size:10.5px}
+  .side .rule .b{font-size:12.5px}
+}
+
 @media (max-width:767px){
   body{padding:12px 10px 22px}
   header{margin-bottom:8px}
@@ -380,36 +417,41 @@ html.dark body.cb .cell.fixed{background:#000 !important}
     </button>
   </div>
 
-  <div class="hud">
-    <div class="item"><span>剩余苑小苑</span><span class="val accent" id="left">—</span></div>
-    <div class="hearts" id="hearts" aria-label="生命值"></div>
-    <div class="item"><span>用时</span><span class="val" id="timer">00:00</span></div>
-  </div>
+  <div class="layout" id="layout">
+    <aside class="side" id="side">
+      <div class="hud">
+        <div class="item"><span>剩余苑小苑</span><span class="val accent" id="left">—</span></div>
+        <div class="hearts" id="hearts" aria-label="生命值"></div>
+        <div class="item"><span>用时</span><span class="val" id="timer">00:00</span></div>
+      </div>
 
-  <div class="rules">
-    <div class="rule"><div class="t">每种颜色</div><div class="b"><span class="dot"></span>仅 1 个苑小苑</div></div>
-    <div class="rule"><div class="t">每行每列</div><div class="b"><span class="dot"></span>仅 1 个苑小苑</div></div>
-    <div class="rule"><div class="t">苑小苑四周</div><div class="b"><span class="dot"></span>不能有苑小苑</div></div>
-  </div>
-  <div class="rules-mobile">
-    <div class="rm">每种颜色<b>仅1个苑小苑</b></div>
-    <div class="rm">每行每列<b>仅1个苑小苑</b></div>
-    <div class="rm">四周<b>不能有苑小苑</b></div>
-  </div>
+      <div class="actions">
+        <button class="btn" id="btnFix" title="把已画的 X 全部固定（固定后「清除标记」不会清掉）">固定标记</button>
+        <button class="btn" id="btnUnfix" title="把手动固定的 X 变回临时标记；翻苑小苑自动固定的不可解除">解除固定</button>
+        <button class="btn" id="btnClear" title="只清还没固定的 X，固定的一律保留">清除标记</button>
+        <button class="btn" id="btnWipe" title="清空所有手动标记（含手动固定的）；翻苑小苑自动固定的仍保留">清空标记</button>
+        <button class="btn" id="btnNew">重开一局</button>
+        <button class="btn warn" id="btnQuit">认输</button>
+      </div>
 
-  <div class="board-shell" id="shell">
-    <div class="rnums" id="rnums"></div>
-    <div class="board" id="board" aria-label="棋盘"></div>
-    <div class="cnums" id="cnums"></div>
-  </div>
+      <div class="rules">
+        <div class="rule"><div class="t">每种颜色</div><div class="b"><span class="dot"></span>仅 1 个苑小苑</div></div>
+        <div class="rule"><div class="t">每行每列</div><div class="b"><span class="dot"></span>仅 1 个苑小苑</div></div>
+        <div class="rule"><div class="t">苑小苑四周</div><div class="b"><span class="dot"></span>不能有苑小苑</div></div>
+      </div>
+    </aside>
 
-  <div class="actions">
-    <button class="btn" id="btnFix" title="把已画的 X 全部固定（固定后「清除标记」不会清掉）">固定标记</button>
-    <button class="btn" id="btnUnfix" title="把手动固定的 X 变回临时标记；翻苑小苑自动固定的不可解除">解除固定</button>
-    <button class="btn" id="btnClear" title="只清还没固定的 X，固定的一律保留">清除标记</button>
-    <button class="btn" id="btnWipe" title="清空所有手动标记（含手动固定的）；翻苑小苑自动固定的仍保留">清空标记</button>
-    <button class="btn" id="btnNew">重开一局</button>
-    <button class="btn warn" id="btnQuit">认输</button>
+    <div class="rules-mobile">
+      <div class="rm">每种颜色<b>仅1个苑小苑</b></div>
+      <div class="rm">每行每列<b>仅1个苑小苑</b></div>
+      <div class="rm">四周<b>不能有苑小苑</b></div>
+    </div>
+
+    <div class="board-shell" id="shell">
+      <div class="rnums" id="rnums"></div>
+      <div class="board" id="board" aria-label="棋盘"></div>
+      <div class="cnums" id="cnums"></div>
+    </div>
   </div>
 
   <p class="hint">
@@ -1073,16 +1115,35 @@ function stopTimer(){
 
 /* ============ 棋盘尺寸 ============ */
 function computeBoardSize(){
-  var vw = document.documentElement.clientWidth || window.innerWidth;
   var mobile = isMobile();
-  // 行列标号现在所有档位都显示，两侧要给标号留出位置（约 20px）
-  var maxW = vw - (mobile ? 42 : 46);
+  var layoutEl = document.getElementById("layout");
+  var sideEl = document.getElementById("side");
+  var vw = document.documentElement.clientWidth || window.innerWidth;
+  var layoutW = (layoutEl && layoutEl.clientWidth) ? layoutEl.clientWidth : Math.max(240, vw - 32);
+  // 宽屏是两栏（棋盘 + 右侧操作栏）：直接量布局，避免样式断点和 JS 判断不一致导致棋盘溢出
+  var twoCol = false, sideW = 0, colGap = 0;
+  if(layoutEl){
+    var gcs = getComputedStyle(layoutEl);
+    if(gcs.display.indexOf("grid") === 0 && gcs.gridTemplateColumns.split(" ").length > 1){
+      twoCol = true;
+      sideW = sideEl ? Math.round(sideEl.getBoundingClientRect().width) : 236;
+      colGap = parseFloat(gcs.columnGap) || 0;
+    }
+  }
+  var labels = mobile ? 42 : 44;                       // 两侧行列标号占位
+  var maxW = layoutW - labels - (twoCol ? sideW + colGap : 0);
   if(!mobile){
-    if(S.n >= 18) maxW = Math.min(maxW, 960);
-    else if(S.n >= 15) maxW = Math.min(maxW, 900);
-    else maxW = Math.min(maxW, 760);
-    // 小棋盘顺手把高度也压进一屏；大棋盘要保住格子大小，高了就整页滚动
-    if(S.n < 15) maxW = Math.min(maxW, Math.max(300, window.innerHeight - 350));
+    // 高度也参与计算：单格先保 34px（20×20 也能看清），屏幕放得下就顺手压进一屏，
+    // 实在放不下才让棋盘占满宽度、页面滚动（右侧操作栏是 sticky 的，按钮不会被滚走）
+    var ih = window.innerHeight || 800;
+    var byH = Math.max(S.n * 34 + 8, ih - 130);
+    if(S.n >= 18){
+      maxW = Math.min(maxW, 940, byH);
+    }else if(S.n >= 15){
+      maxW = Math.min(maxW, 880, byH);
+    }else{
+      maxW = Math.min(maxW, 740, Math.max(300, ih - (twoCol ? 210 : 230)));
+    }
     // 格子别大到离谱：单格上限约 100px
     maxW = Math.min(maxW, S.n * 100 + 40);
   }
