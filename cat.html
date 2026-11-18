@@ -135,7 +135,7 @@ h1 .paw{color:var(--gold)}
 }
 .rnums{grid-column:1;grid-row:1;display:flex;flex-direction:column;justify-content:space-around}
 .cnums{grid-column:2;grid-row:2;display:flex;justify-content:space-around;padding-top:2px}
-.rnums span,.cnums span{font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums;line-height:1;text-align:center}
+.rnums span,.cnums span{font-size:var(--lab,10px);color:var(--ink-3);font-variant-numeric:tabular-nums;line-height:1;text-align:center}
 .board{
   grid-column:2;grid-row:1;
   display:grid;background:#fff;border-radius:16px;padding:6px;
@@ -170,6 +170,9 @@ h1 .paw{color:var(--gold)}
 .x.red i{background:#f4584c;box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
 /* 固定标记：色块保持原色，只把 X 由白变近黑（一眼区分"固定"与"临时标记"，又不吃掉颜色信息） */
 .cell.fixed .x i{background:#111;box-shadow:none}
+/* 色盲模式：固定的黑色 X 换成"整格涂黑"，用非颜色线索（明暗块）也能看出哪些格已固定 */
+body.cb .cell.fixed{background:#111 !important}
+body.cb .cell.fixed .x i{opacity:0}
 
 .cat-svg{width:82%;height:82%;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(43,36,64,.18))}
 /* 翻出来的苑小苑：直接用项目里的欢迎图（透明底 PNG），不垫底色 */
@@ -193,6 +196,29 @@ h1 .paw{color:var(--gold)}
 .hint{text-align:center;font-size:11.5px;color:var(--ink-3);margin:12px auto 0;line-height:1.8;max-width:620px}
 .hint b{color:var(--ink-2);font-weight:600}
 .hint-touch{display:none}
+
+/* 色盲模式 / 暗色模式开关 */
+.opts{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin:9px auto 0;max-width:620px}
+.sw{
+  appearance:none;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  background:#fff;border:1px solid var(--line);border-radius:99px;padding:6px 9px 6px 12px;
+  font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-2);line-height:1;
+  box-shadow:var(--shadow-s);transition:.16s;
+}
+.sw:hover{border-color:#d6cec2}
+.sw:active{transform:scale(.98)}
+.sw .sw-t{letter-spacing:.02em}
+.sw i{
+  position:relative;flex:0 0 auto;width:32px;height:18px;border-radius:99px;
+  background:#e7e1d6;transition:background .18s ease;
+}
+.sw i::after{
+  content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2px rgba(43,36,64,.25);transition:transform .18s ease;
+}
+.sw[aria-checked="true"]{color:var(--ink);border-color:var(--gold)}
+.sw[aria-checked="true"] i{background:var(--gold)}
+.sw[aria-checked="true"] i::after{transform:translateX(14px)}
 
 /* 遮罩 */
 .overlay{
@@ -255,7 +281,14 @@ body.has-endbar{padding-bottom:8px}
   .rules-mobile .rm{text-align:center;line-height:1.5;font-size:10px;color:var(--ink-3)}
   .rules-mobile .rm b{display:block;font-size:10.5px;color:#4a5cc0;font-weight:800}
   .board-shell{margin-top:12px}
-  .rnums,.cnums{display:none}
+  /* 移动端也保留行列标号，只是字号更小 */
+  .rnums,.cnums{display:flex}
+  .rnums span,.cnums span{font-size:var(--lab,8px)}
+  .opts{margin:8px auto 0;padding:0 2px}
+  .sw{font-size:11px;padding:5px 8px 5px 10px;gap:7px}
+  .sw i{width:29px;height:16px}
+  .sw i::after{width:12px;height:12px}
+  .sw[aria-checked="true"] i::after{transform:translateX(13px)}
   .actions{gap:7px;margin-top:14px}
   .btn{padding:9px 4px;font-size:12px;border-radius:11px}
   .hint{font-size:10.5px;margin-top:9px}
@@ -268,6 +301,51 @@ body.has-endbar{padding-bottom:8px}
   .cell{transition:none}
 }
 .nw{white-space:nowrap}
+
+/* ============ 暗色主题（html.dark）：亮底会干扰判色，整页压暗后色块更好分 ============ */
+html.dark{
+  --ink:#eeebf6;
+  --ink-2:#c5bfd6;
+  --ink-3:#8d87a3;
+  --bg:#141219;
+  --card:#211d2b;
+  --line:#302b3f;
+  --gold:#e8b83f;
+  --gold-soft:rgba(232,184,63,.35);
+  --red:#ff6b60;
+  --accent:#8a9bff;
+  --edge:rgba(255,255,255,.16);
+  --shadow:0 10px 30px rgba(0,0,0,.48);
+  --shadow-s:0 2px 8px rgba(0,0,0,.38);
+  background:#141219;
+}
+html.dark body{
+  background:
+    radial-gradient(circle at 12% 8%, #261f2c 0%, rgba(38,31,44,0) 42%),
+    radial-gradient(circle at 88% 0%, #1b2130 0%, rgba(27,33,48,0) 40%),
+    var(--bg);
+}
+html.dark .lvsel,html.dark .lv,html.dark .btn,html.dark .sw,html.dark .panel,html.dark .ddpop{background:var(--card)}
+html.dark .lv[aria-pressed="true"]{background:#4b4468;border-color:#4b4468;color:#fff}
+html.dark .lv[aria-pressed="true"] small{color:rgba(255,255,255,.72)}
+html.dark .ddbtn:hover:not(:disabled){background:rgba(255,255,255,.07)}
+html.dark .dditem{background:#2a2537;color:var(--ink-2)}
+html.dark .dditem:hover{background:#38324a;color:var(--ink)}
+html.dark .dditem[aria-selected="true"]{background:#4b4468;color:#fff}
+html.dark .ddpop::-webkit-scrollbar-thumb{background:#4b4360}
+html.dark .rules-mobile .rm b{color:#9aa9ff}
+html.dark .heart.lost path{fill:#3f3a52}
+html.dark .board{background:#232030 !important}
+html.dark .overlay{background:rgba(20,18,25,.86)}
+html.dark .endbar{background:rgba(33,29,43,.96)}
+html.dark .btn.primary{background:#4b4468;border-color:#4b4468;color:#fff}
+html.dark .btn.primary:hover{background:#5a5279;border-color:#5a5279}
+html.dark .btn.warn{background:#3b2325;border-color:#5c3234;color:#ff9b93}
+html.dark .btn.confirm{background:#3a3020;border-color:#5b4725;color:#f2c76e}
+html.dark .spinner{border-color:#3a354b;border-top-color:var(--gold)}
+/* 暗色下固定的黑 X 直接用近黑（不加白描边，否则细白框会盖住黑芯） */
+html.dark .cell.fixed .x i{background:#0b0b10;box-shadow:none}
+html.dark body.cb .cell.fixed{background:#000 !important}
 </style>
 </head>
 <body>
@@ -286,6 +364,17 @@ body.has-endbar{padding-bottom:8px}
       </button>
       <div class="ddpop" id="ddPop" role="listbox" aria-label="棋盘边长"></div>
     </div>
+  </div>
+
+  <div class="opts">
+    <button type="button" class="sw" id="btnDark" role="switch" aria-checked="false"
+            aria-label="暗色模式：整页压暗，减少亮底对判色的干扰">
+      <span class="sw-t">暗色模式</span><i aria-hidden="true"></i>
+    </button>
+    <button type="button" class="sw" id="btnCB" role="switch" aria-checked="false"
+            aria-label="色盲模式：开启后固定格整格显示为黑色">
+      <span class="sw-t">色盲模式</span><i aria-hidden="true"></i>
+    </button>
   </div>
 
   <div class="hud">
@@ -321,8 +410,8 @@ body.has-endbar{padding-bottom:8px}
   </div>
 
   <p class="hint">
-    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>翻出苑小苑；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N&nbsp;≥&nbsp;18</b> 时<span class="nw">翻出苑小苑</span>，同行、同列、同色块与它周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> <span class="nw">只翻苑小苑</span>。</span>
-    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>翻出苑小苑；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N&nbsp;≥&nbsp;18</b> 时<span class="nw">翻出苑小苑</span>，同行、同列、同色块与它周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> <span class="nw">只翻苑小苑</span>。</span>
+    <span class="hint-pc">单击或拖动格子标白叉，<b>双击</b>翻出苑小苑；划过已标白叉的非固定格子可取消；<b>右键</b>可解除单格固定。<br><b>N&nbsp;≥&nbsp;18</b> 时<span class="nw">翻出苑小苑</span>，同行、同列、同色块与它周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> <span class="nw">只翻苑小苑</span>。开<b>色盲模式</b>后固定格整格变黑。</span>
+    <span class="hint-touch">轻点或滑动格子标白叉，<b>双击</b>翻出苑小苑；划过已标白叉的非固定格子可取消；解除固定用上面的按钮。<br><b>N&nbsp;≥&nbsp;18</b> 时<span class="nw">翻出苑小苑</span>，同行、同列、同色块与它周围 8 格会<b>自动打叉并固定</b>（X 变<b>黑</b>，且不可解除）；<b>N&nbsp;≤&nbsp;17</b> <span class="nw">只翻苑小苑</span>。开<b>色盲模式</b>后固定格整格变黑。</span>
   </p>
 </div>
 
@@ -810,7 +899,7 @@ var S = {
   revealed:null, wrong:null, marks:null,
   cells:[], bcls:[], colors:null,
   running:false, t0:0, elapsed:0, ended:false,
-  timerId:0
+  timerId:0, cb:false, dark:false
 };
 
 var board = document.getElementById("board");
@@ -844,6 +933,32 @@ var lvsel = document.getElementById("lvsel");
 var ddBtn = document.getElementById("ddBtn");
 var ddVal = document.getElementById("ddVal");
 var ddPop = document.getElementById("ddPop");
+var btnCB = document.getElementById("btnCB");
+var btnDark = document.getElementById("btnDark");
+
+/* 暗色模式：整页压暗（亮底会削弱对色块的判断），只改主题，不动棋局数据 */
+function setDark(on){
+  S.dark = !!on;
+  document.documentElement.classList.toggle("dark", S.dark);
+  btnDark.setAttribute("aria-checked", S.dark ? "true" : "false");
+  btnDark.setAttribute("aria-label", S.dark
+    ? "暗色模式已开启：整页压暗，再点一次回到亮色"
+    : "暗色模式：整页压暗，减少亮底对判色的干扰");
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute("content", S.dark ? "#141219" : "#faf7f2");
+}
+btnDark.addEventListener("click", function(){ setDark(!S.dark); });
+
+/* 色盲模式：只切换显示方式（固定格整格涂黑 / 固定格黑 X），不改动任何标记数据 */
+function setCB(on){
+  S.cb = !!on;
+  document.body.classList.toggle("cb", S.cb);
+  btnCB.setAttribute("aria-checked", S.cb ? "true" : "false");
+  btnCB.setAttribute("aria-label", S.cb
+    ? "色盲模式已开启：固定格整格显示为黑色，再点一次恢复"
+    : "色盲模式：开启后固定格整格显示为黑色");
+}
+btnCB.addEventListener("click", function(){ setCB(!S.cb); });
 
 /* 自定义 N 下拉：20 到 5 倒序，自绘面板 */
 (function buildNDropdown(){
@@ -957,7 +1072,8 @@ function stopTimer(){
 function computeBoardSize(){
   var vw = document.documentElement.clientWidth || window.innerWidth;
   var mobile = isMobile();
-  var maxW = vw - (mobile ? 30 : 44);
+  // 行列标号现在所有档位都显示，两侧要给标号留出位置（约 20px）
+  var maxW = vw - (mobile ? 42 : 46);
   if(!mobile){
     if(S.n >= 18) maxW = Math.min(maxW, 960);
     else if(S.n >= 15) maxW = Math.min(maxW, 900);
@@ -1011,18 +1127,21 @@ function buildBoard(){
   }
   board.appendChild(frag);
 
-  // 行列号仅大棋盘显示
+  // 行列号：所有档位都显示（与 20×20 一致），字号随格宽自适应
   rnums.innerHTML = ""; cnums.innerHTML = "";
-  if(n >= 15){
-    rnums.style.width = (String(n).length > 1 ? 16 : 12) + "px";
-    rnums.style.height = size + "px";
-    cnums.style.height = "12px";
-    for(var r2=0;r2<n;r2++){
-      var a = document.createElement("span"); a.textContent = (r2+1); rnums.appendChild(a);
-    }
-    for(var c2=0;c2<n;c2++){
-      var b2 = document.createElement("span"); b2.textContent = (c2+1); cnums.appendChild(b2);
-    }
+  var lab = Math.max(8, Math.min(13, Math.round(cell * 0.26)));
+  rnums.style.width = (n >= 10 ? 15 : 12) + "px";
+  rnums.style.height = size + "px";
+  rnums.style.padding = pad + "px 0";          // 让标号与行中心对齐（不含棋盘内边距）
+  cnums.style.height = "12px";
+  cnums.style.padding = "2px " + pad + "px 0";
+  rnums.style.setProperty("--lab", lab + "px");
+  cnums.style.setProperty("--lab", lab + "px");
+  for(var r2=0;r2<n;r2++){
+    var a = document.createElement("span"); a.textContent = (r2+1); rnums.appendChild(a);
+  }
+  for(var c2=0;c2<n;c2++){
+    var b2 = document.createElement("span"); b2.textContent = (c2+1); cnums.appendChild(b2);
   }
   for(var j=0;j<n*n;j++) paintCell(j);
   board.classList.remove("generating");
@@ -1711,6 +1830,26 @@ function runSelfTest(){
     document.dispatchEvent(new PointerEvent("pointerdown", {bubbles:true}));
     check("点击面板外 → 面板收起", !ddPop.classList.contains("on"));
 
+    // 0b 行列标号：每一档都显示（含小盘 / 移动端），数量与 N 一致
+    var labVis = getComputedStyle(rnums).display !== "none" && getComputedStyle(cnums).display !== "none";
+    check("行列标号全档位显示（" + S.n + "×" + S.n + "：行 " + rnums.children.length +
+          " / 列 " + cnums.children.length + "）",
+          labVis && rnums.children.length === S.n && cnums.children.length === S.n);
+
+    // 0c 暗色模式：整页压暗，棋盘与卡片跟着变深
+    btnDark.click(); await _sleep(60);
+    check("暗色模式开启 → 整页压暗 + 棋盘深底 [" + getComputedStyle(document.body).backgroundColor +
+          " | " + getComputedStyle(board).backgroundColor + "]",
+          document.documentElement.classList.contains("dark") &&
+          btnDark.getAttribute("aria-checked") === "true" &&
+          getComputedStyle(document.body).backgroundColor === "rgb(20, 18, 25)" &&
+          getComputedStyle(board).backgroundColor === "rgb(35, 32, 48)");
+    btnDark.click(); await _sleep(60);
+    check("暗色模式关闭 → 回到亮色 [" + getComputedStyle(document.body).backgroundColor + "]",
+          !document.documentElement.classList.contains("dark") &&
+          btnDark.getAttribute("aria-checked") === "false" &&
+          getComputedStyle(document.body).backgroundColor === "rgb(250, 247, 242)");
+
     // 1 单击标叉
     var a = 0;
     while(S.cats.has(a)) a++;
@@ -1792,6 +1931,25 @@ function runSelfTest(){
           /fixed/.test(el1.className) &&
           el1.style.background === origRGB &&
           getComputedStyle(barFixed).backgroundColor === "rgb(17, 17, 17)");
+
+    // 6a 色盲模式：固定格整格涂黑，关掉后恢复原样
+    btnCB.click(); await _sleep(60);
+    check("色盲模式开启 → 固定格整格变黑 [" + getComputedStyle(el1).backgroundColor + " | X 透明度 " +
+          getComputedStyle(el1.querySelector(".x i")).opacity + "]",
+          document.body.classList.contains("cb") &&
+          btnCB.getAttribute("aria-checked") === "true" &&
+          getComputedStyle(el1).backgroundColor === "rgb(17, 17, 17)" &&
+          getComputedStyle(el1.querySelector(".x i")).opacity === "0");
+    var cbMark = S.marks.get(m1);
+    btnCB.click(); await _sleep(60);
+    check("色盲模式关闭 → 色块恢复原色 + 黑 X，标记数据不变 [" + getComputedStyle(el1.querySelector(".x i")).backgroundColor + "]",
+          !document.body.classList.contains("cb") &&
+          btnCB.getAttribute("aria-checked") === "false" &&
+          el1.style.background === origRGB &&
+          getComputedStyle(el1.querySelector(".x i")).backgroundColor === "rgb(17, 17, 17)" &&
+          getComputedStyle(el1.querySelector(".x i")).opacity === "1" &&
+          !!(S.marks.get(m1) && S.marks.get(m1).fixed) &&
+          S.marks.get(m1) === cbMark);
     btnClear.click(); await _sleep(60);
     check("清除标记 → 固定格保留", S.marks.has(m1));
     btnUnfix.click(); await _sleep(60);
