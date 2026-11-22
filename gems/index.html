@@ -108,7 +108,7 @@
   <section class="panel">
     <h2>收菜记录与报表 <span class="tag">后续可扩展图表统计</span></h2>
     <table>
-      <thead><tr><th>时间</th><th>来源</th><th>宝石</th><th>金币(贡品)</th><th>灵魂</th><th>钥匙</th><th>荣誉</th><th>常规金币</th></tr></thead>
+      <thead><tr><th>时间</th><th>来源</th><th>宝石</th><th>金币</th><th>灵魂</th><th>钥匙</th><th>荣誉</th></tr></thead>
       <tbody id="ledgerBody"></tbody>
     </table>
     <div class="totals" id="totals"></div>
@@ -163,7 +163,8 @@ function randId(){ return Math.random().toString(36).slice(2,18); }
 function nowMs(){ return Date.now(); }
 function serverNow(){ return Date.now() - clockOffset; } // 服务器口径当前毫秒
 function fmtTime(ms){ if(!ms) return "—"; const d=new Date(ms); return d.toLocaleString("zh-CN",{hour12:false}); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+function localDate(ms){ const d=new Date(ms??Date.now()); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const day=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${day}`; }
+function todayStr(){ return localDate(Date.now()); }
 function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 function log(msg, level="info"){
@@ -276,8 +277,8 @@ function parseRewards(result){
 }
 
 function todayAutoCount(){
-  const t = todayStr();
-  return ledger.filter(r=>r.date===t && r.source==="auto").length;
+  const t = localDate(Date.now());
+  return ledger.filter(r=>localDate(r.ts)===t && r.source==="auto").length;
 }
 
 /* ===================== 收菜 ===================== */
@@ -328,7 +329,7 @@ async function collectOnce(source="auto"){
     lastReward = rewards;
 
     const entry = {
-      ts:lastRunAt, date:todayStr(), source,
+      ts:lastRunAt, date:localDate(lastRunAt), source,
       classification:null, ...rewards
     };
     ledger.push(entry);
@@ -416,13 +417,19 @@ function fillForm(){
 
 async function saveConfig(){
   const f=readForm();
+  f.waitMinutes=Math.max(60, Number(f.waitMinutes)||60);
+  f.jitterMinutes=Math.min(3, Math.max(0, Number(f.jitterMinutes)||0));
+  f.maxPerDay=Math.max(1, Number(f.maxPerDay)||23);
   Object.assign(cfg,f);
   if(!cfg.username && cfg.inviteCode){
     try{ const pd=await resolveUsername(); cfg.username=pd.username||""; document.getElementById("username").value=cfg.username; log("已按邀请码反查用户名"); }
     catch(e){ log("反查用户名失败: "+e.message,"warn"); }
   }
   saveJSON(CFG_KEY,cfg);
-  log("配置已保存");
+  // 按新等待分钟数刷新预计可收时间；调度进行中则用新参数实时重排下一轮
+  if(profileLastCollect) profileNextReady=profileLastCollect+cfg.waitMinutes*60*1000;
+  if(timer) scheduleNext();
+  log("配置已保存，调度参数已实时生效");
   render();
   refreshIdentity();
 }
@@ -452,25 +459,25 @@ function render(){
 
   // 记录表
   const body=document.getElementById("ledgerBody");
-  if(!ledger.length){ body.innerHTML=`<tr><td colspan="8" class="empty">暂无收菜记录</td></tr>`; }
+  if(!ledger.length){ body.innerHTML=`<tr><td colspan="7" class="empty">暂无收菜记录</td></tr>`; }
   else{
     body.innerHTML = ledger.slice().reverse().map(r=>{
       const tr=r.tributeRewards||{}, g=r.regularGold||{};
+      const gold=(tr.TributeGoldToCollect??0)+(g.GoldToCollect??0);
       const srcTag=r.source==="auto"?`<span class="tag auto">自动</span>`:`<span class="tag manual">手动</span>`;
-      return `<tr><td>${fmtTime(r.ts)}</td><td>${srcTag}</td><td>${tr.TributeGemsToCollect??0}</td><td>${tr.TributeGoldToCollect??0}</td><td>${tr.TributeSoulsToCollect??0}</td><td>${tr.TributeKeysToCollect??0}</td><td>${tr.TributeGloryToCollect??0}</td><td>${g.GoldToCollect??0}</td></tr>`;
+      return `<tr><td>${fmtTime(r.ts)}</td><td>${srcTag}</td><td>${tr.TributeGemsToCollect??0}</td><td>${gold}</td><td>${tr.TributeSoulsToCollect??0}</td><td>${tr.TributeKeysToCollect??0}</td><td>${tr.TributeGloryToCollect??0}</td></tr>`;
     }).join("");
   }
 
-  // 合计（预留报表入口）
+  // 合计（预留报表入口）；贡品金币与常规金币合并为金币
   const sum=f=>ledger.reduce((s,r)=>s+((r.tributeRewards||{})[f]||0),0);
-  const sumGold=ledger.reduce((s,r)=>s+((r.regularGold||{}).GoldToCollect||0),0);
+  const sumGold=ledger.reduce((s,r)=>s+((r.tributeRewards||{}).TributeGoldToCollect||0)+((r.regularGold||{}).GoldToCollect||0),0);
   document.getElementById("totals").innerHTML =
     `<span>累计宝石 <b>${sum("TributeGemsToCollect")}</b></span>`+
-    `<span>累计贡品金币 <b>${sum("TributeGoldToCollect")}</b></span>`+
+    `<span>累计金币 <b>${sumGold}</b></span>`+
     `<span>累计灵魂 <b>${sum("TributeSoulsToCollect")}</b></span>`+
     `<span>累计钥匙 <b>${sum("TributeKeysToCollect")}</b></span>`+
-    `<span>累计荣誉 <b>${sum("TributeGloryToCollect")}</b></span>`+
-    `<span>累计常规金币 <b>${sumGold}</b></span>`;
+    `<span>累计荣誉 <b>${sum("TributeGloryToCollect")}</b></span>`;
 }
 
 /* ===================== 事件绑定 ===================== */
