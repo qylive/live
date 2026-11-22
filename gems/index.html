@@ -229,7 +229,8 @@ async function resolveUsername(){
 
 async function fetchProfile(){
   const u = await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500});
-  const item=(u.Usernames||[])[0]; if(!item) return null;
+  const list=u.Usernames||[];
+  const item=list.find(x=>x.Name===cfg.inviteCode)||list[0]; if(!item) return null;
   const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id});
   const pd=prof.ProfileData||{};
   if(typeof pd.ServerTime==="number") clockOffset = Date.now()-pd.ServerTime;
@@ -292,11 +293,15 @@ async function collectOnce(source="auto"){
   if(ref && serverNow()-ref < waitMs){
     const remain = Math.ceil((waitMs-(serverNow()-ref))/1000);
     log(`距上次收菜不足 ${cfg.waitMinutes} 分钟（约剩 ${remain} 秒），跳过`);
+    scheduleNext();
     return {ok:false,reason:"not_ready"};
   }
 
   setStatus("collecting");
   try{
+    if(!cfg.username && cfg.inviteCode){
+      try{ const pd=await resolveUsername(); cfg.username=pd.username||""; saveJSON(CFG_KEY,cfg); }catch(e){}
+    }
     if(!token) await login();
 
     if(cfg.dryRun){
@@ -464,8 +469,8 @@ document.getElementById("btnNow").onclick=()=>collectOnce("manual-trigger");
 document.getElementById("btnProbe").onclick=async()=>{
   setStatus("probing");
   try{
-    await login();
     await refreshIdentity();
+    await login();
     saveJSON(CFG_KEY,cfg);
     const offSec=(clockOffset/1000).toFixed(1);
     log(`探测成功｜角色 ${profileName||cfg.username}（${cfg.inviteCode}）等级 ${profileLevel??"—"}｜本机时钟偏差 ${offSec} 秒`);
