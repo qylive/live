@@ -285,7 +285,9 @@ async function collectOnce(source="auto"){
   const waitMs = cfg.waitMinutes*60*1000;
 
   if(source==="auto" && todayAutoCount() >= cfg.maxPerDay){
-    log(`今日已达上限 ${cfg.maxPerDay} 次，跳过本轮`, "warn"); return {ok:false,reason:"daily_cap"};
+    log(`今日已达上限 ${cfg.maxPerDay} 次，跳过本轮`, "warn");
+    nextRunAt = nowMs() + 60*60*1000; // 上限后 1 小时再复核，避免高频重复日志
+    return {ok:false,reason:"daily_cap"};
   }
 
   // 到点后单次向服务端校验上次收菜时间；等待窗口内不做任何轮询请求
