@@ -141,6 +141,7 @@ let lastCollectMs = null;
 let lastReward = {};
 let nextRunAt = null;
 let timer = null;
+let clockOffset = 0; // 本地毫秒 - 服务器毫秒（本地偏快为正）
 
 /* ===================== 工具 ===================== */
 function loadJSON(key, fallback){
@@ -150,6 +151,7 @@ function loadJSON(key, fallback){
 function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 function randId(){ return Math.random().toString(36).slice(2,18); }
 function nowMs(){ return Date.now(); }
+function serverNow(){ return Date.now() - clockOffset; } // 服务器口径当前毫秒
 function fmtTime(ms){ if(!ms) return "—"; const d=new Date(ms); return d.toLocaleString("zh-CN",{hour12:false}); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -222,7 +224,9 @@ async function serverLastCollect(){
     const u = await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500});
     const item=(u.Usernames||[])[0]; if(!item) return null;
     const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id});
-    const ts=(prof.ProfileData||{}).LastCollectTime;
+    const pd=prof.ProfileData||{};
+    if(typeof pd.ServerTime==="number") clockOffset = Date.now()-pd.ServerTime;
+    const ts=pd.LastCollectTime;
     return typeof ts==="number"?ts:null;
   }catch(e){ log("就绪状态查询失败: "+e.message, "warn"); return null; }
 }
@@ -260,8 +264,8 @@ async function collectOnce(source="auto"){
   const srvLast = await serverLastCollect();
   if(srvLast!=null) lastCollectMs = srvLast;
   const ref = lastCollectMs || lastRunAt;
-  if(ref && nowMs()-ref < waitMs){
-    const remain = Math.ceil((waitMs-(nowMs()-ref))/1000);
+  if(ref && serverNow()-ref < waitMs){
+    const remain = Math.ceil((waitMs-(serverNow()-ref))/1000);
     log(`距上次收菜不足 ${cfg.waitMinutes} 分钟（约剩 ${remain} 秒），跳过`);
     return {ok:false,reason:"not_ready"};
   }
@@ -311,7 +315,7 @@ function scheduleNext(){
   const waitMs = cfg.waitMinutes*60*1000;
   const jitterMs = Math.random()*cfg.jitterMinutes*60*1000;
   const base = lastCollectMs || lastRunAt;
-  const delay = base ? (base+waitMs-nowMs()+jitterMs) : (waitMs+jitterMs);
+  const delay = base ? (base+waitMs-serverNow()+jitterMs) : (waitMs+jitterMs);
   nextRunAt = nowMs() + Math.max(delay, 5000);
 }
 
@@ -425,8 +429,9 @@ document.getElementById("btnProbe").onclick=async()=>{
     if(!cfg.username && cfg.inviteCode){ const pd=await resolveUsername(); cfg.username=pd.username||""; saveJSON(CFG_KEY,cfg); fillForm(); }
     await login();
     let pd={};
-    if(cfg.inviteCode){ try{ const u=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500}); const item=(u.Usernames||[])[0]; const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id}); pd=prof.ProfileData||{}; }catch(e){} }
-    log(`探测成功｜角色 ${pd.Name||cfg.username}（${pd.NameCode||cfg.inviteCode}）等级 ${pd.Level||"—"}`);
+    if(cfg.inviteCode){ try{ const u=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500}); const item=(u.Usernames||[])[0]; const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id}); pd=prof.ProfileData||{}; if(typeof pd.ServerTime==="number") clockOffset=Date.now()-pd.ServerTime; }catch(e){} }
+    const offSec=(clockOffset/1000).toFixed(1);
+    log(`探测成功｜角色 ${pd.Name||cfg.username}（${pd.NameCode||cfg.inviteCode}）等级 ${pd.Level||"—"}｜本机时钟偏差 ${offSec} 秒`);
   }catch(e){ log("探测失败: "+e.message,"error"); }
   finally{ setStatus(timer?"running":"stopped"); render(); }
 };
