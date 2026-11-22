@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoW 自动收菜</title>
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#ffffff; --line:#e3e8e6; --text:#1f2a27; --muted:#6b7a75;
+    --accent:#1f8a70; --accent-d:#166957; --warn:#c8741a; --danger:#c0392b; --ok:#2e9e5b;
+    --shadow:0 1px 3px rgba(20,40,35,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  .wrap{max-width:960px;margin:0 auto;padding:20px 16px 48px}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  header.top h1{font-size:20px;font-weight:600}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:12px;background:#eef2f0;color:var(--muted)}
+  .badge.running{background:#e6f4ec;color:var(--ok)}
+  .badge.paused{background:#fdf1e3;color:var(--warn)}
+  .badge.stopped{background:#eef2f0;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+  .card .label{color:var(--muted);font-size:12px;margin-bottom:6px}
+  .card .value{font-size:20px;font-weight:600}
+  .card .sub{color:var(--muted);font-size:12px;margin-top:4px}
+  section.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+  section.panel h2{font-size:15px;margin-bottom:12px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+  button{border:1px solid transparent;border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;background:#eef2f0;color:var(--text)}
+  button.primary{background:var(--accent);color:#fff}
+  button.primary:hover{background:var(--accent-d)}
+  button.ghost{background:#fff;border-color:var(--line)}
+  button.danger{background:#fbeae8;color:var(--danger)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  label.field{display:flex;flex-direction:column;gap:5px}
+  label.field span{font-size:12px;color:var(--muted)}
+  input,select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;color:var(--text);width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:500;font-size:12px}
+  .totals{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:18px;font-size:13px}
+  .totals b{color:var(--accent-d)}
+  .logbox{background:#1f2a27;color:#d7e2de;border-radius:10px;padding:12px;font-family:Consolas,monospace;font-size:12px;max-height:180px;overflow-y:auto;line-height:1.7}
+  .logbox .t{color:#8fa8a1}
+  .tag{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;background:#eef2f0;color:var(--muted)}
+  .tag.auto{background:#e6f4ec;color:var(--ok)}
+  .tag.manual{background:#fdf1e3;color:var(--warn)}
+  .empty{color:var(--muted);text-align:center;padding:24px 0}
+  @media (max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>GoW 自动收菜</h1>
+    <span id="statusBadge" class="badge stopped"><span class="dot"></span><span id="statusText">未启动</span></span>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="label">今日已收（自动）</div><div class="value" id="todayCount">0</div><div class="sub" id="todayCap">上限 23 次</div></div>
+    <div class="card"><div class="label">上次收菜</div><div class="value" id="lastRun">—</div><div class="sub" id="lastGems">宝石 +0</div></div>
+    <div class="card"><div class="label">下次执行</div><div class="value" id="nextRun">—</div><div class="sub">含随机抖动</div></div>
+    <div class="card"><div class="label">账号</div><div class="value" id="accountName">未配置</div><div class="sub" id="accountUser">—</div></div>
+  </div>
+
+  <section class="panel">
+    <h2>控制</h2>
+    <div class="actions">
+      <button id="btnStart" class="primary">开始调度</button>
+      <button id="btnPause" class="ghost" disabled>暂停</button>
+      <button id="btnResume" class="ghost" disabled>继续</button>
+      <button id="btnProbe" class="ghost">连通性探测</button>
+      <button id="btnNow" class="ghost">立即收菜（手动）</button>
+    </div>
+    <div class="hint">调度按“距上次收菜 ≥ 等待分钟数 + 0～抖动分钟随机”执行；页面需保持打开，关闭后后台不会继续收菜。手动在游戏里收过菜也不会重复领取，脚本会以服务端时间为准跳过未就绪的窗口。</div>
+  </section>
+
+  <section class="panel">
+    <h2>账号与调度配置</h2>
+    <div class="grid">
+      <label class="field"><span>邀请码（NameCode）</span><input id="inviteCode" placeholder="如 MIKAZUKI_SR9D"></label>
+      <label class="field"><span>用户名（留空则按邀请码自动反查）</span><input id="username" placeholder="API username"></label>
+      <label class="field"><span>密码（持久凭据，仅存本机浏览器）</span><input id="password" type="password" placeholder="持久密码"></label>
+      <label class="field"><span>等待分钟数（须 ≥ 60）</span><input id="waitMinutes" type="number" min="60" value="60"></label>
+      <label class="field"><span>随机抖动分钟（0～3）</span><input id="jitterMinutes" type="number" min="0" max="3" step="0.5" value="3"></label>
+      <label class="field"><span>每日自动上限（次）</span><input id="maxPerDay" type="number" min="1" value="23"></label>
+    </div>
+    <div class="row" style="margin-top:12px;gap:16px">
+      <label class="field" style="flex-direction:row;align-items:center;gap:6px"><input id="dryRun" type="checkbox" style="width:auto"><span>试运行（不真正提交）</span></label>
+      <button id="btnSave" class="primary">保存配置</button>
+    </div>
+    <div class="hint">配置与收菜记录保存在本机浏览器 localStorage，不会上传到任何第三方；换浏览器或清理缓存后需重新填写。</div>
+  </section>
+
+  <section class="panel">
+    <h2>收菜记录与报表 <span class="tag">后续可扩展图表统计</span></h2>
+    <table>
+      <thead><tr><th>时间</th><th>来源</th><th>宝石</th><th>金币(贡品)</th><th>灵魂</th><th>钥匙</th><th>荣誉</th><th>常规金币</th></tr></thead>
+      <tbody id="ledgerBody"></tbody>
+    </table>
+    <div class="totals" id="totals"></div>
+  </section>
+
+  <section class="panel">
+    <h2>运行日志</h2>
+    <div id="logbox" class="logbox"></div>
+  </section>
+
+</div>
+
+<script>
+"use strict";
+/* ===================== 常量与状态 ===================== */
+const API = "https://pcmob.parse.gemsofwar.com/call_function";
+const CFG_KEY = "gow_harvest_cfg";
+const LEDGER_KEY = "gow_harvest_ledger";
+
+const DEFAULTS = {
+  inviteCode: "", username: "", password: "",
+  waitMinutes: 60, jitterMinutes: 3, maxPerDay: 23, dryRun: false,
+  clientVersion: "9.4.0r85161", platform: "PC_CLIENT",
+  lc: "zh", paymentCountry: "CN", paymentCurrency: "CNY",
+  steamid: ""
+};
+
+let cfg = loadJSON(CFG_KEY, DEFAULTS);
+let ledger = loadJSON(LEDGER_KEY, []);
+let token = null;
+let sessionId = randId();
+let status = "stopped";           // stopped / running / paused / probing / collecting
+let lastRunAt = null;
+let lastCollectMs = null;
+let lastReward = {};
+let nextRunAt = null;
+let timer = null;
+
+/* ===================== 工具 ===================== */
+function loadJSON(key, fallback){
+  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : JSON.parse(JSON.stringify(fallback)); }
+  catch(e){ return JSON.parse(JSON.stringify(fallback)); }
+}
+function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function randId(){ return Math.random().toString(36).slice(2,18); }
+function nowMs(){ return Date.now(); }
+function fmtTime(ms){ if(!ms) return "—"; const d=new Date(ms); return d.toLocaleString("zh-CN",{hour12:false}); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function log(msg, level="info"){
+  const box = document.getElementById("logbox");
+  const line = document.createElement("div");
+  line.innerHTML = `<span class="t">${fmtTime(nowMs())}</span> ${esc(msg)}`;
+  box.appendChild(line);
+  while(box.children.length > 300) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ===================== API 封装 ===================== */
+function envelope(fn, extra={}){
+  return Object.assign({
+    functionName: fn,
+    username: cfg.username, password: cfg.password,
+    clientCallTime: nowMs(), clientVersion: cfg.clientVersion,
+    ServerToken: token, platform: cfg.platform,
+    analyticsSessionId: sessionId, lc: cfg.lc,
+    paymentCountry: cfg.paymentCountry, paymentCurrency: cfg.paymentCurrency
+  }, extra);
+}
+
+async function apiCall(body){
+  const resp = await fetch(API, {
+    method:"POST",
+    headers:{"Content-Type":"application/json; charset=utf-8"},
+    body: JSON.stringify(body)
+  });
+  const ans = await resp.json();
+  if(ans.error && !ans.result) throw new Error(typeof ans.error==="string"?ans.error:JSON.stringify(ans.error));
+  return ans.result ?? ans;
+}
+
+async function login(){
+  const r = await apiCall(envelope("login_user", {
+    facebook:0, fullScreen:1, hint:2, music:1, rated:0,
+    savetime:1423527580051, sound:1,
+    ConsoleId: cfg.steamid, Platform:2, GetDebugTasks:false, language: cfg.lc
+  }));
+  token = r.ServerToken;
+  if(!token) throw new Error("登录未下发 ServerToken");
+  log("登录成功，会话令牌已刷新");
+  return r;
+}
+
+async function resolveUsername(){
+  if(!cfg.inviteCode) throw new Error("请先填写邀请码");
+  const u = await apiCall({
+    clientVersion:cfg.clientVersion, platform:cfg.platform,
+    functionName:"download_user_names", SearchText:cfg.inviteCode, StartAt:0, Limit:500
+  });
+  const list = u.Usernames || [];
+  const item = list.find(x=>x.Name===cfg.inviteCode) || list[0];
+  if(!item) throw new Error("邀请码未查到账号");
+  const prof = await apiCall({
+    clientVersion:cfg.clientVersion, platform:cfg.platform,
+    functionName:"get_hero_profile", Id:item.Id
+  });
+  const pd = prof.ProfileData || {};
+  cfg.username = pd.username || "";
+  return pd;
+}
+
+async function serverLastCollect(){
+  if(!cfg.inviteCode) return null;
+  try{
+    const u = await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500});
+    const item=(u.Usernames||[])[0]; if(!item) return null;
+    const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id});
+    const ts=(prof.ProfileData||{}).LastCollectTime;
+    return typeof ts==="number"?ts:null;
+  }catch(e){ log("就绪状态查询失败: "+e.message, "warn"); return null; }
+}
+
+/* ===================== 奖励解析 ===================== */
+const TR_FIELDS = ["TributeGoldToCollect","TributeSoulsToCollect","TributeKeysToCollect","TributeGloryToCollect","TributeGemsToCollect"];
+const GOLD_FIELDS = ["GoldToCollect","HomeGoldToCollect","OtherGoldToCollect"];
+const num = (o,k)=> (typeof o?.[k]==="number"?o[k]:0);
+
+function parseRewards(result){
+  const tr = Object.fromEntries(TR_FIELDS.map(f=>[f,num(result,f)]));
+  const gold = Object.fromEntries(GOLD_FIELDS.map(f=>[f,num(result,f)]));
+  const hero = result.NewHeroData || {};
+  return {
+    tribute: !!result.Tribute,
+    tributeRewards: tr, regularGold: gold,
+    balances:{ Gold:hero.Gold, Gems:hero.Gems, Souls:hero.Souls },
+    lastCollectTime: hero.LastCollectTime, serverTime: hero.ServerTime
+  };
+}
+
+function todayAutoCount(){
+  const t = todayStr();
+  return ledger.filter(r=>r.date===t && r.source==="auto").length;
+}
+
+/* ===================== 收菜 ===================== */
+async function collectOnce(source="auto"){
+  const waitMs = cfg.waitMinutes*60*1000;
+
+  if(source==="auto" && todayAutoCount() >= cfg.maxPerDay){
+    log(`今日已达上限 ${cfg.maxPerDay} 次，跳过本轮`, "warn"); return {ok:false,reason:"daily_cap"};
+  }
+
+  const srvLast = await serverLastCollect();
+  if(srvLast!=null) lastCollectMs = srvLast;
+  const ref = lastCollectMs || lastRunAt;
+  if(ref && nowMs()-ref < waitMs){
+    const remain = Math.ceil((waitMs-(nowMs()-ref))/1000);
+    log(`距上次收菜不足 ${cfg.waitMinutes} 分钟（约剩 ${remain} 秒），跳过`);
+    return {ok:false,reason:"not_ready"};
+  }
+
+  setStatus("collecting");
+  try{
+    if(!token) await login();
+
+    if(cfg.dryRun){
+      log("[dry-run] 试运行：未真正提交 collect_gold");
+      return {ok:true,dryRun:true};
+    }
+
+    const result = await apiCall(envelope("collect_gold"));
+    const rewards = parseRewards(result);
+    if(rewards.lastCollectTime) lastCollectMs = rewards.lastCollectTime;
+    lastRunAt = nowMs();
+    lastReward = rewards;
+
+    const entry = {
+      ts:lastRunAt, date:todayStr(), source,
+      classification:null, ...rewards
+    };
+    ledger.push(entry);
+    saveJSON(LEDGER_KEY, ledger);
+
+    const tr=rewards.tributeRewards;
+    if(rewards.tribute && Object.values(tr).some(v=>v>0)){
+      log(`收菜成功｜贡品 gold=${tr.TributeGoldToCollect} souls=${tr.TributeSoulsToCollect} keys=${tr.TributeKeysToCollect} glory=${tr.TributeGloryToCollect} gems=${tr.TributeGemsToCollect}`);
+    }else{
+      log("本轮无可领取贡品（未就绪或奖励为 0）");
+    }
+    scheduleNext();
+    render();
+    return {ok:true, rewards};
+  }catch(e){
+    log("本轮收菜异常: "+e.message, "error");
+    token = null;
+    return {ok:false, error:e.message};
+  }finally{
+    if(status==="collecting") setStatus(timer?"running":"stopped");
+  }
+}
+
+/* ===================== 调度 ===================== */
+function scheduleNext(){
+  const waitMs = cfg.waitMinutes*60*1000;
+  const jitterMs = Math.random()*cfg.jitterMinutes*60*1000;
+  const base = lastCollectMs || lastRunAt;
+  const delay = base ? (base+waitMs-nowMs()+jitterMs) : (waitMs+jitterMs);
+  nextRunAt = nowMs() + Math.max(delay, 5000);
+}
+
+function tick(){
+  if(status!=="running") return;
+  if(nextRunAt==null || nowMs()>=nextRunAt){
+    collectOnce("auto").then(()=>{ if(nextRunAt==null) scheduleNext(); });
+  }
+}
+
+function start(){
+  if(status==="running") return;
+  if(!cfg.username && !cfg.inviteCode){ log("请先在配置页填写邀请码或用户名", "warn"); return; }
+  setStatus("running");
+  nextRunAt = null; // 启动先跑一轮
+  if(timer) clearInterval(timer);
+  timer = setInterval(tick, 5000);
+  log("调度已启动");
+}
+function pause(){ if(status==="running"){ setStatus("paused"); log("调度已暂停"); } }
+function resume(){ if(status==="paused"){ setStatus("running"); log("调度已继续"); } }
+function stopAll(){ if(timer){clearInterval(timer);timer=null;} setStatus("stopped"); }
+
+function setStatus(s){
+  status = s;
+  const badge=document.getElementById("statusBadge"), txt=document.getElementById("statusText");
+  const map={running:["running","运行中"],paused:["paused","已暂停"],stopped:["stopped","未启动"],probing:["running","探测中"],collecting:["running","收菜中"]};
+  const [cls,label]=map[s]||map.stopped;
+  badge.className="badge "+cls; txt.textContent=label;
+  document.getElementById("btnPause").disabled = s!=="running";
+  document.getElementById("btnResume").disabled = s!=="paused";
+}
+
+/* ===================== 配置读写 ===================== */
+function readForm(){
+  return {
+    inviteCode:document.getElementById("inviteCode").value.trim(),
+    username:document.getElementById("username").value.trim(),
+    password:document.getElementById("password").value,
+    waitMinutes:Number(document.getElementById("waitMinutes").value)||60,
+    jitterMinutes:Number(document.getElementById("jitterMinutes").value)||0,
+    maxPerDay:Number(document.getElementById("maxPerDay").value)||23,
+    dryRun:document.getElementById("dryRun").checked
+  };
+}
+function fillForm(){
+  document.getElementById("inviteCode").value=cfg.inviteCode||"";
+  document.getElementById("username").value=cfg.username||"";
+  document.getElementById("password").value=cfg.password||"";
+  document.getElementById("waitMinutes").value=cfg.waitMinutes;
+  document.getElementById("jitterMinutes").value=cfg.jitterMinutes;
+  document.getElementById("maxPerDay").value=cfg.maxPerDay;
+  document.getElementById("dryRun").checked=!!cfg.dryRun;
+}
+
+async function saveConfig(){
+  const f=readForm();
+  Object.assign(cfg,f);
+  if(!cfg.username && cfg.inviteCode){
+    try{ const pd=await resolveUsername(); cfg.username=pd.username||""; document.getElementById("username").value=cfg.username; log("已按邀请码反查用户名"); }
+    catch(e){ log("反查用户名失败: "+e.message,"warn"); }
+  }
+  saveJSON(CFG_KEY,cfg);
+  log("配置已保存");
+  render();
+}
+
+/* ===================== 渲染 ===================== */
+function render(){
+  document.getElementById("todayCount").textContent = todayAutoCount();
+  document.getElementById("todayCap").textContent = `上限 ${cfg.maxPerDay} 次`;
+  document.getElementById("lastRun").textContent = fmtTime(lastRunAt);
+  const gems = lastReward.tributeRewards?.TributeGemsToCollect ?? 0;
+  document.getElementById("lastGems").textContent = `宝石 +${gems}`;
+  document.getElementById("nextRun").textContent = fmtTime(nextRunAt);
+  document.getElementById("accountName").textContent = cfg.inviteCode || "未配置";
+  document.getElementById("accountUser").textContent = cfg.username || "—";
+
+  // 记录表
+  const body=document.getElementById("ledgerBody");
+  if(!ledger.length){ body.innerHTML=`<tr><td colspan="8" class="empty">暂无收菜记录</td></tr>`; }
+  else{
+    body.innerHTML = ledger.slice().reverse().map(r=>{
+      const tr=r.tributeRewards||{}, g=r.regularGold||{};
+      const srcTag=r.source==="auto"?`<span class="tag auto">自动</span>`:`<span class="tag manual">手动</span>`;
+      return `<tr><td>${fmtTime(r.ts)}</td><td>${srcTag}</td><td>${tr.TributeGemsToCollect??0}</td><td>${tr.TributeGoldToCollect??0}</td><td>${tr.TributeSoulsToCollect??0}</td><td>${tr.TributeKeysToCollect??0}</td><td>${tr.TributeGloryToCollect??0}</td><td>${g.GoldToCollect??0}</td></tr>`;
+    }).join("");
+  }
+
+  // 合计（预留报表入口）
+  const sum=f=>ledger.reduce((s,r)=>s+((r.tributeRewards||{})[f]||0),0);
+  const sumGold=ledger.reduce((s,r)=>s+((r.regularGold||{}).GoldToCollect||0),0);
+  document.getElementById("totals").innerHTML =
+    `<span>累计宝石 <b>${sum("TributeGemsToCollect")}</b></span>`+
+    `<span>累计贡品金币 <b>${sum("TributeGoldToCollect")}</b></span>`+
+    `<span>累计灵魂 <b>${sum("TributeSoulsToCollect")}</b></span>`+
+    `<span>累计钥匙 <b>${sum("TributeKeysToCollect")}</b></span>`+
+    `<span>累计荣誉 <b>${sum("TributeGloryToCollect")}</b></span>`+
+    `<span>累计常规金币 <b>${sumGold}</b></span>`;
+}
+
+/* ===================== 事件绑定 ===================== */
+document.getElementById("btnStart").onclick=start;
+document.getElementById("btnPause").onclick=pause;
+document.getElementById("btnResume").onclick=resume;
+document.getElementById("btnSave").onclick=saveConfig;
+document.getElementById("btnNow").onclick=()=>collectOnce("manual-trigger");
+document.getElementById("btnProbe").onclick=async()=>{
+  setStatus("probing");
+  try{
+    if(!cfg.username && cfg.inviteCode){ const pd=await resolveUsername(); cfg.username=pd.username||""; saveJSON(CFG_KEY,cfg); fillForm(); }
+    await login();
+    let pd={};
+    if(cfg.inviteCode){ try{ const u=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500}); const item=(u.Usernames||[])[0]; const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id}); pd=prof.ProfileData||{}; }catch(e){} }
+    log(`探测成功｜角色 ${pd.Name||cfg.username}（${pd.NameCode||cfg.inviteCode}）等级 ${pd.Level||"—"}`);
+  }catch(e){ log("探测失败: "+e.message,"error"); }
+  finally{ setStatus(timer?"running":"stopped"); render(); }
+};
+
+fillForm();
+render();
+log("页面已就绪，填写邀请码与密码后可开始调度");
+</script>
+</body>
+</html>
