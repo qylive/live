@@ -53,6 +53,9 @@
   .tag.auto{background:#e6f4ec;color:var(--ok)}
   .tag.manual{background:#fdf1e3;color:var(--warn)}
   .empty{color:var(--muted);text-align:center;padding:24px 0}
+  .identity-info{display:flex;flex-wrap:wrap;gap:8px 18px;margin:-6px 2px 16px;font-size:12px;color:var(--muted)}
+  .identity-info b{color:var(--text);font-weight:600}
+  .identity-info .item{display:inline-flex;gap:6px;align-items:baseline}
   @media (max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -67,9 +70,11 @@
   <div class="cards">
     <div class="card"><div class="label">今日已收（自动）</div><div class="value" id="todayCount">0</div><div class="sub" id="todayCap">上限 23 次</div></div>
     <div class="card"><div class="label">上次收菜</div><div class="value" id="lastRun">—</div><div class="sub" id="lastGems">宝石 +0</div></div>
-    <div class="card"><div class="label">下次执行</div><div class="value" id="nextRun">—</div><div class="sub">含随机抖动</div></div>
+    <div class="card"><div class="label">下次执行</div><div class="value" id="nextRun">—</div><div class="sub" id="nextRunNote">含随机抖动</div></div>
     <div class="card"><div class="label">账号</div><div class="value" id="accountName">未配置</div><div class="sub" id="accountUser">—</div></div>
   </div>
+
+  <div id="identityInfo" class="identity-info"></div>
 
   <section class="panel">
     <h2>控制</h2>
@@ -142,6 +147,10 @@ let lastReward = {};
 let nextRunAt = null;
 let timer = null;
 let clockOffset = 0; // 本地毫秒 - 服务器毫秒（本地偏快为正）
+let profileLastCollect = null; // 服务端 LastCollectTime（公开资料）
+let profileNextReady = null;   // LastCollectTime + 等待分钟
+let profileName = "";
+let profileLevel = null;
 
 /* ===================== 工具 ===================== */
 function loadJSON(key, fallback){
@@ -218,17 +227,33 @@ async function resolveUsername(){
   return pd;
 }
 
+async function fetchProfile(){
+  const u = await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500});
+  const item=(u.Usernames||[])[0]; if(!item) return null;
+  const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id});
+  const pd=prof.ProfileData||{};
+  if(typeof pd.ServerTime==="number") clockOffset = Date.now()-pd.ServerTime;
+  return pd;
+}
+
 async function serverLastCollect(){
   if(!cfg.inviteCode) return null;
   try{
-    const u = await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500});
-    const item=(u.Usernames||[])[0]; if(!item) return null;
-    const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id});
-    const pd=prof.ProfileData||{};
-    if(typeof pd.ServerTime==="number") clockOffset = Date.now()-pd.ServerTime;
-    const ts=pd.LastCollectTime;
-    return typeof ts==="number"?ts:null;
+    const pd=await fetchProfile();
+    return pd && typeof pd.LastCollectTime==="number"?pd.LastCollectTime:null;
   }catch(e){ log("就绪状态查询失败: "+e.message, "warn"); return null; }
+}
+
+async function refreshIdentity(){
+  if(!cfg.inviteCode) return;
+  try{
+    const pd=await fetchProfile(); if(!pd) return;
+    profileLastCollect=typeof pd.LastCollectTime==="number"?pd.LastCollectTime:null;
+    profileName=pd.Name||""; profileLevel=pd.Level??null;
+    if(!cfg.username && pd.username) cfg.username=pd.username;
+    if(profileLastCollect) profileNextReady=profileLastCollect+cfg.waitMinutes*60*1000;
+    render();
+  }catch(e){ log("资料查询失败: "+e.message,"warn"); }
 }
 
 /* ===================== 奖励解析 ===================== */
@@ -281,7 +306,7 @@ async function collectOnce(source="auto"){
 
     const result = await apiCall(envelope("collect_gold"));
     const rewards = parseRewards(result);
-    if(rewards.lastCollectTime) lastCollectMs = rewards.lastCollectTime;
+    if(rewards.lastCollectTime){ lastCollectMs = rewards.lastCollectTime; profileLastCollect = rewards.lastCollectTime; profileNextReady = rewards.lastCollectTime + cfg.waitMinutes*60*1000; }
     lastRunAt = nowMs();
     lastReward = rewards;
 
@@ -381,18 +406,31 @@ async function saveConfig(){
   saveJSON(CFG_KEY,cfg);
   log("配置已保存");
   render();
+  refreshIdentity();
 }
 
 /* ===================== 渲染 ===================== */
 function render(){
   document.getElementById("todayCount").textContent = todayAutoCount();
   document.getElementById("todayCap").textContent = `上限 ${cfg.maxPerDay} 次`;
-  document.getElementById("lastRun").textContent = fmtTime(lastRunAt);
+  const lastRef = profileLastCollect || lastRunAt;
+  document.getElementById("lastRun").textContent = fmtTime(lastRef);
   const gems = lastReward.tributeRewards?.TributeGemsToCollect ?? 0;
   document.getElementById("lastGems").textContent = `宝石 +${gems}`;
-  document.getElementById("nextRun").textContent = fmtTime(nextRunAt);
-  document.getElementById("accountName").textContent = cfg.inviteCode || "未配置";
+  document.getElementById("nextRun").textContent = fmtTime(nextRunAt || profileNextReady);
+  document.getElementById("nextRunNote").textContent = nextRunAt ? "含随机抖动" : "预计就绪（未计抖动）";
+  document.getElementById("accountName").textContent = profileName || cfg.inviteCode || "未配置";
   document.getElementById("accountUser").textContent = cfg.username || "—";
+
+  // 身份/就绪信息条
+  const offSec=(clockOffset/1000).toFixed(1);
+  const info=[];
+  if(profileName) info.push(`<span class="item">角色 <b>${esc(profileName)}</b></span>`);
+  if(profileLevel!=null) info.push(`<span class="item">等级 <b>${profileLevel}</b></span>`);
+  if(profileLastCollect) info.push(`<span class="item">上次收菜 <b>${fmtTime(profileLastCollect)}</b></span>`);
+  if(profileNextReady) info.push(`<span class="item">预计可收 <b>${fmtTime(profileNextReady)}</b></span>`);
+  info.push(`<span class="item">时钟偏差 <b>${offSec}s</b></span>`);
+  document.getElementById("identityInfo").innerHTML = info.join("");
 
   // 记录表
   const body=document.getElementById("ledgerBody");
@@ -426,18 +464,18 @@ document.getElementById("btnNow").onclick=()=>collectOnce("manual-trigger");
 document.getElementById("btnProbe").onclick=async()=>{
   setStatus("probing");
   try{
-    if(!cfg.username && cfg.inviteCode){ const pd=await resolveUsername(); cfg.username=pd.username||""; saveJSON(CFG_KEY,cfg); fillForm(); }
     await login();
-    let pd={};
-    if(cfg.inviteCode){ try{ const u=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500}); const item=(u.Usernames||[])[0]; const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id}); pd=prof.ProfileData||{}; if(typeof pd.ServerTime==="number") clockOffset=Date.now()-pd.ServerTime; }catch(e){} }
+    await refreshIdentity();
+    saveJSON(CFG_KEY,cfg);
     const offSec=(clockOffset/1000).toFixed(1);
-    log(`探测成功｜角色 ${pd.Name||cfg.username}（${pd.NameCode||cfg.inviteCode}）等级 ${pd.Level||"—"}｜本机时钟偏差 ${offSec} 秒`);
+    log(`探测成功｜角色 ${profileName||cfg.username}（${cfg.inviteCode}）等级 ${profileLevel??"—"}｜本机时钟偏差 ${offSec} 秒`);
   }catch(e){ log("探测失败: "+e.message,"error"); }
   finally{ setStatus(timer?"running":"stopped"); render(); }
 };
 
 fillForm();
 render();
+if(cfg.inviteCode) refreshIdentity();
 log("页面已就绪，填写邀请码与密码后可开始调度");
 </script>
 </body>
