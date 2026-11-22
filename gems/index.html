@@ -85,7 +85,7 @@
       <button id="btnProbe" class="ghost">连通性探测</button>
       <button id="btnNow" class="ghost">立即收菜（手动）</button>
     </div>
-    <div class="hint">调度按“距上次收菜 ≥ 等待分钟数 + 0～抖动分钟随机”执行；页面需保持打开，关闭后后台不会继续收菜。手动在游戏里收过菜也不会重复领取，脚本会以服务端时间为准跳过未就绪的窗口。</div>
+    <div class="hint">调度按“距上次收菜 ≥ 等待分钟数 + 0～抖动分钟随机”执行；等待窗口内不主动请求服务器，到点才校验一次。若检测到已在游戏内手动收取，会按服务端时间自动顺延下一窗口，不会重复领取。页面需保持打开，关闭后后台不会继续收菜。</div>
   </section>
 
   <section class="panel">
@@ -146,6 +146,7 @@ let lastCollectMs = null;
 let lastReward = {};
 let nextRunAt = null;
 let timer = null;
+let busy = false;
 let clockOffset = 0; // 本地毫秒 - 服务器毫秒（本地偏快为正）
 let profileLastCollect = null; // 服务端 LastCollectTime（公开资料）
 let profileNextReady = null;   // LastCollectTime + 等待分钟
@@ -287,13 +288,22 @@ async function collectOnce(source="auto"){
     log(`今日已达上限 ${cfg.maxPerDay} 次，跳过本轮`, "warn"); return {ok:false,reason:"daily_cap"};
   }
 
+  // 到点后单次向服务端校验上次收菜时间；等待窗口内不做任何轮询请求
   const srvLast = await serverLastCollect();
-  if(srvLast!=null) lastCollectMs = srvLast;
+  if(srvLast!=null){
+    if(lastCollectMs && srvLast > lastCollectMs + 1000){
+      log("检测到服务端收菜时间已更新（可能已在游戏内手动收取），按服务端时间顺延");
+    }
+    lastCollectMs = srvLast;
+    profileLastCollect = srvLast;
+    profileNextReady = srvLast + waitMs;
+  }
   const ref = lastCollectMs || lastRunAt;
   if(ref && serverNow()-ref < waitMs){
     const remain = Math.ceil((waitMs-(serverNow()-ref))/1000);
-    log(`距上次收菜不足 ${cfg.waitMinutes} 分钟（约剩 ${remain} 秒），跳过`);
+    log(`距上次收菜不足 ${cfg.waitMinutes} 分钟（约剩 ${remain} 秒），跳过并顺延下一轮`);
     scheduleNext();
+    render();
     return {ok:false,reason:"not_ready"};
   }
 
@@ -350,9 +360,10 @@ function scheduleNext(){
 }
 
 function tick(){
-  if(status!=="running") return;
+  if(status!=="running" || busy) return;
   if(nextRunAt==null || nowMs()>=nextRunAt){
-    collectOnce("auto").then(()=>{ if(nextRunAt==null) scheduleNext(); });
+    busy = true;
+    collectOnce("auto").finally(()=>{ busy=false; if(nextRunAt==null) scheduleNext(); });
   }
 }
 
