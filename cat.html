@@ -605,6 +605,18 @@ function regionConnected(N,reg,k,exceptCell){
 function isLeaf(N,reg,cell){
   return regionConnected(N,reg,reg[cell],cell);
 }
+// 色块尺寸（含猫所在的那格）
+function regionSize(N,reg,k){
+  let c=0; for(let i=0;i<N*N;i++) if(reg[i]===k) c++;
+  return c;
+}
+// 统计尺寸 <= th 的色块个数（th=1 就是「一格即答案」的白给块）
+function countSmall(N,reg,th){
+  const sz=new Int32Array(N);
+  for(let i=0;i<N*N;i++) sz[reg[i]]++;
+  let c=0; for(let k=0;k<N;k++) if(sz[k]>0 && sz[k]<=th) c++;
+  return c;
+}
 // 终局结构校验：每色块连通、每色块恰 1 猫
 function structureOk(N,reg,cats){
   const catCnt=new Int32Array(N), has=new Uint8Array(N);
@@ -718,9 +730,50 @@ function deduce(N,reg){
   for(let i=0;i<N*N;i++){ if(st[i]===0) unknown++; else if(st[i]===2) cats++; }
   return {unknown, cats, st};
 }
+// 修复阶段：把「1 格色块」从邻居（>=3 格）搬一格进来喂大，同时不能弄丢唯一解
+function repairSingles(N,reg,cats,cap,rnd,deadline,now){
+  let small=countSmall(N,reg,1), guard=0;
+  const maxIter=40*N;
+  while(small>cap && guard++<maxIter && now()<deadline){
+    const singles=[];
+    for(let k=0;k<N;k++) if(regionSize(N,reg,k)===1) singles.push(k);
+    if(!singles.length) break;
+    for(let i=singles.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); const t=singles[i]; singles[i]=singles[j]; singles[j]=t; }
+    let moved=false;
+    for(const sk of singles){
+      let sc=-1;
+      for(let i=0;i<N*N;i++) if(reg[i]===sk){ sc=i; break; }
+      const cands=[];
+      for(const nb of nbrs(N,sc)){
+        const kb=reg[nb];
+        if(kb===sk || cats.has(nb)) continue;
+        if(regionSize(N,reg,kb)<=2) continue;      // 别把别人也拆到 2 格
+        if(!isLeaf(N,reg,nb)) continue;            // 搬走不能让邻居断成两半
+        cands.push(nb);
+      }
+      if(!cands.length) continue;
+      const nb=cands[Math.floor(rnd()*cands.length)], kb=reg[nb];
+      reg[nb]=sk;
+      if(deduce(N,reg).unknown===0){
+        small=countSmall(N,reg,1); moved=true; break;
+      }
+      reg[nb]=kb;
+    }
+    if(!moved) break;
+  }
+  return small;
+}
 // 5) 定点搬移下山：瞄着未定格，把它所在色块的叶格搬到隔壁，缩小候选面
 function generate(N,seed,budgetMs,opts){
-  const p = (opts && opts.smallRatio!=null) ? opts.smallRatio : (N>=20?0.75 : N>=15?0.65 : 0.6);
+  const o = opts || {};
+  const p = (o.smallRatio!=null) ? o.smallRatio : (N>=20?0.75 : N>=15?0.65 : 0.6);
+  // 小盘硬约束：任何色块至少 2 格，彻底掐掉「一格即答案」的白给块；
+  // 大盘允许临时出现 1 格块（否则搜索太死、容易生成失败），最后统一靠 repairSingles 收回
+  const minSize = (o.minSize!=null) ? o.minSize : (N<=14 ? 2 : 1);
+  // 验收上限：白给块最多几个（小盘必须 0）
+  const singleCap = (o.singleCap!=null) ? o.singleCap : (N<=12 ? 0 : N<=14 ? 1 : 2);
+  // 修复没达标时的容忍量（优先保证能开局，宁可多一个白给块）
+  const slack = (o.slack!=null) ? o.slack : 0;
   const t0=(typeof performance!=="undefined"?performance.now():Date.now());
   const now=()=> (typeof performance!=="undefined"?performance.now():Date.now());
   const rnd=mulberry32(seed);
@@ -737,15 +790,7 @@ function generate(N,seed,budgetMs,opts){
     let cur=res.unknown, stale=0;
     const staleCap = Math.max(240, 12*N);
     while(now()-t0<budgetMs){
-      if(cur===0){
-        // 开门门槛：结构合法 + 暴力枚举复核不得出现第 2 个解
-        if(structureOk(N,reg,cats)){
-          const chk=countSolutions(N,reg,2,4000000);
-          if(chk.count===1 || (chk.capped && chk.count<2))
-            return {reg,cats,unknown:0,ms:Math.round(now()-t0),tries};
-        }
-        break;
-      }
+      if(cur===0) break;                    // 已经有唯一解，出去收拾白给块
       const st=res.st;
       const unknownCells=[];
       for(let i=0;i<N*N;i++) if(st[i]===0) unknownCells.push(i);
@@ -804,6 +849,8 @@ function generate(N,seed,budgetMs,opts){
         k=opts2[Math.floor(rnd()*opts2.length)];
       }
       const old=reg[cell];
+      // 别把来源色块抽到只剩 1 格（minSize=2 时是硬约束，大盘 minSize=1 等于不拦）
+      if(regionSize(N,reg,old)<=minSize){ if(++stale>staleCap) break; continue; }
       reg[cell]=k;
       const r2=deduce(N,reg);
       if(r2.unknown<=cur){
@@ -812,11 +859,21 @@ function generate(N,seed,budgetMs,opts){
       } else { reg[cell]=old; stale++; }
       if(stale>staleCap) break;
     }
+    if(cur===0){
+      let small=countSmall(N,reg,1);
+      if(small>singleCap) small=repairSingles(N,reg,cats,singleCap,rnd,t0+budgetMs,now);
+      if(small<=singleCap+slack && structureOk(N,reg,cats)){
+        // 门槛：结构合法 + 白给块达标 + 暴力枚举复核确认只有这一个解
+        const chk=countSolutions(N,reg,2,4000000);
+        if(chk.count===1 || (chk.capped && chk.count<2))
+          return {reg,cats,unknown:0,small,ms:Math.round(now()-t0),tries};
+      }
+    }
     if(cur<best) best=cur;
   }
   return {reg:null,cats:null,unknown:best,ms:Math.round(now()-t0),tries};
 }
-if (typeof module!=='undefined') module.exports={generate,deduce,growRegions,genCats,isLeaf,nbrs};
+if (typeof module!=='undefined') module.exports={generate,deduce,growRegions,genCats,isLeaf,nbrs,regionSize,countSmall,repairSingles};
 </script>
 
 <script>
@@ -1900,6 +1957,16 @@ function runSelfTest(){
     check("行列标号全档位显示（" + S.n + "×" + S.n + "：行 " + rnums.children.length +
           " / 列 " + cnums.children.length + "）",
           labVis && rnums.children.length === S.n && cnums.children.length === S.n);
+
+    // 0b2 难度下限：不能有「一格即答案」的白给块（小盘必须 0，大盘最多 2）
+    (function(){
+      var sz = new Int32Array(S.n), singles = 0, doubles = 0;
+      for(var i2=0;i2<S.n*S.n;i2++) sz[S.reg[i2]]++;
+      for(var k4=0;k4<S.n;k4++){ if(sz[k4]===1) singles++; else if(sz[k4]===2) doubles++; }
+      var cap = S.n <= 12 ? 0 : 2;
+      check("无白给块：1 格色块 " + singles + " 个（上限 " + cap + "，2 格色块 " + doubles + " 个）",
+            singles <= cap);
+    })();
 
     // 0c 暗色模式：整页压暗，棋盘与卡片跟着变深
     btnDark.click(); await _sleep(60);
