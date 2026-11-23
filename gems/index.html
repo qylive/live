@@ -147,6 +147,7 @@ let lastReward = {};
 let nextRunAt = null;
 let timer = null;
 let busy = false;
+let lastRenderedDay = localDate(Date.now());
 let clockOffset = 0; // 本地毫秒 - 服务器毫秒（本地偏快为正）
 let profileLastCollect = null; // 服务端 LastCollectTime（公开资料）
 let profileNextReady = null;   // LastCollectTime + 等待分钟
@@ -165,6 +166,7 @@ function serverNow(){ return Date.now() - clockOffset; } // 服务器口径当�
 function fmtTime(ms){ if(!ms) return "—"; const d=new Date(ms); return d.toLocaleString("zh-CN",{hour12:false}); }
 function localDate(ms){ const d=new Date(ms??Date.now()); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const day=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${day}`; }
 function todayStr(){ return localDate(Date.now()); }
+function nextMidnightMs(){ const d=new Date(); d.setHours(24,0,0,30); return d.getTime(); } // 本地次日 00:00:30
 function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 function log(msg, level="info"){
@@ -286,8 +288,9 @@ async function collectOnce(source="auto"){
   const waitMs = cfg.waitMinutes*60*1000;
 
   if(source==="auto" && todayAutoCount() >= cfg.maxPerDay){
-    log(`今日已达上限 ${cfg.maxPerDay} 次，跳过本轮`, "warn");
-    nextRunAt = nowMs() + 60*60*1000; // 上限后 1 小时再复核，避免高频重复日志
+    log(`今日已达上限 ${cfg.maxPerDay} 次，已排到次日 00:00 后继续`, "warn");
+    nextRunAt = nextMidnightMs(); // 跨天计数自动归 0，到次日零点再复核；冷却窗口仍由就绪判断把关
+    render();
     return {ok:false,reason:"daily_cap"};
   }
 
@@ -364,6 +367,9 @@ function scheduleNext(){
 
 function tick(){
   if(status!=="running" || busy) return;
+  // 跨自然日时先刷新计数卡片（不请求服务器），计数随日期自动归 0
+  const today = localDate(nowMs());
+  if(today!==lastRenderedDay){ lastRenderedDay=today; render(); }
   if(nextRunAt==null || nowMs()>=nextRunAt){
     busy = true;
     collectOnce("auto").finally(()=>{ busy=false; if(nextRunAt==null) scheduleNext(); });
