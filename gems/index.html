@@ -49,6 +49,8 @@
   .totals{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:18px;font-size:13px}
   .totals b{color:var(--accent-d)}
   .totals .group-label{color:var(--muted);margin-right:2px}
+  .totals .avg{flex-basis:100%;color:var(--muted);font-size:12px;margin-top:3px}
+  .totals .avg b{color:var(--text);font-weight:600}
   .totals + .totals{border-top:none;margin-top:4px;padding-top:4px}
   .logbox{background:#1f2a27;color:#d7e2de;border-radius:10px;padding:12px;font-family:Consolas,monospace;font-size:12px;max-height:228px;overflow-y:auto;line-height:1.7}
   .logbox .t{color:#8fa8a1}
@@ -275,6 +277,8 @@ async function refreshIdentity(){
 const TR_FIELDS = ["TributeGoldToCollect","TributeSoulsToCollect","TributeKeysToCollect","TributeGloryToCollect","TributeGemsToCollect"];
 const GOLD_FIELDS = ["GoldToCollect","HomeGoldToCollect","OtherGoldToCollect"];
 const num = (o,k)=> (typeof o?.[k]==="number"?o[k]:0);
+const roundInt = v=>Math.round(v);
+const round1 = v=>Math.round(v*10)/10;
 
 function parseRewards(result){
   const tr = Object.fromEntries(TR_FIELDS.map(f=>[f,num(result,f)]));
@@ -487,16 +491,28 @@ function render(){
     }).join("");
   }
 
-  // 累计统计：所选日期 + 历史总计；贡品金币与常规金币合并为金币
+  // 累计统计：所选日期 + 历史总计；各含合计、次数与平均每次收益；贡品金币与常规金币合并为金币
   const totalsHtml=(rows,label)=>{
+    const n=rows.length;
     const sum=f=>rows.reduce((s,r)=>s+((r.tributeRewards||{})[f]||0),0);
-    const gold=rows.reduce((s,r)=>s+((r.tributeRewards||{}).TributeGoldToCollect||0)+((r.regularGold||{}).GoldToCollect||0),0);
-    return `<span class="group-label">${label}</span>`+
-      `<span>宝石 <b>${sum("TributeGemsToCollect")}</b></span>`+
-      `<span>金币 <b>${gold}</b></span>`+
-      `<span>灵魂 <b>${sum("TributeSoulsToCollect")}</b></span>`+
-      `<span>钥匙 <b>${sum("TributeKeysToCollect")}</b></span>`+
-      `<span>荣誉 <b>${sum("TributeGloryToCollect")}</b></span>`;
+    const sums={
+      gems:sum("TributeGemsToCollect"),
+      gold:rows.reduce((s,r)=>s+((r.tributeRewards||{}).TributeGoldToCollect||0)+((r.regularGold||{}).GoldToCollect||0),0),
+      souls:sum("TributeSoulsToCollect"),
+      keys:sum("TributeKeysToCollect"),
+      glory:sum("TributeGloryToCollect")
+    };
+    const avg=k=> n? sums[k]/n : 0;
+    const avgLine = n
+      ? `<span class="avg">平均每次：宝石 <b>${round1(avg("gems"))}</b> · 金币 <b>${roundInt(avg("gold"))}</b> · 灵魂 <b>${roundInt(avg("souls"))}</b> · 钥匙 <b>${roundInt(avg("keys"))}</b> · 荣誉 <b>${roundInt(avg("glory"))}</b></span>`
+      : `<span class="avg">暂无记录，暂无平均收益</span>`;
+    return `<span class="group-label">${label}（${n} 次）</span>`+
+      `<span>宝石 <b>${sums.gems}</b></span>`+
+      `<span>金币 <b>${sums.gold}</b></span>`+
+      `<span>灵魂 <b>${sums.souls}</b></span>`+
+      `<span>钥匙 <b>${sums.keys}</b></span>`+
+      `<span>荣誉 <b>${sums.glory}</b></span>`+
+      avgLine;
   };
   document.getElementById("totalsDay").innerHTML = totalsHtml(dayRows, `所选日期 ${filterDate||"—"}`);
   document.getElementById("totalsAll").innerHTML = totalsHtml(ledger, "历史总计");
