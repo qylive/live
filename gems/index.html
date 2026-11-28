@@ -117,8 +117,7 @@
   <section class="panel">
     <h2>账号与调度配置</h2>
     <div class="grid">
-      <label class="field"><span>邀请码（NameCode）</span><input id="inviteCode" placeholder="如 MIKAZUKI_SR9D"></label>
-      <label class="field"><span>用户名（留空则按邀请码自动反查）</span><input id="username" placeholder="API username"></label>
+      <label class="field"><span>邀请码（NameCode，用户名将自动获取）</span><input id="inviteCode" placeholder="如 MIKAZUKI_SR9D"></label>
       <label class="field"><span>密码（持久凭据，仅存本机浏览器）</span><input id="password" type="password" placeholder="持久密码"></label>
       <label class="field"><span>等待分钟数（须 ≥ 60）</span><input id="waitMinutes" type="number" min="60" value="60"></label>
       <label class="field"><span>随机抖动分钟（0～3）</span><input id="jitterMinutes" type="number" min="0" max="3" step="0.5" value="3"></label>
@@ -197,7 +196,7 @@ const CFG_KEY = "gow_harvest_cfg";
 const LEDGER_KEY = "gow_harvest_ledger";
 
 const DEFAULTS = {
-  inviteCode: "", username: "", password: "",
+  inviteCode: "", username: "", usernameCode: "", password: "",
   waitMinutes: 60, jitterMinutes: 3, maxPerDay: 23, dryRun: false,
   clientVersion: "9.4.0r85161", platform: "PC_CLIENT",
   lc: "zh", paymentCountry: "CN", paymentCurrency: "CNY",
@@ -205,6 +204,8 @@ const DEFAULTS = {
 };
 
 let cfg = loadJSON(CFG_KEY, DEFAULTS);
+ // 用户名一律由邀请码反查：旧配置没记录来源、或邀请码已变更的，直接丢弃缓存
+if(cfg.username && cfg.usernameCode !== cfg.inviteCode){ cfg.username = ""; cfg.usernameCode = ""; }
 let ledger = loadJSON(LEDGER_KEY, []);
 let token = null;
 let sessionId = randId();
@@ -324,6 +325,7 @@ async function apiCall(body){
 }
 
 async function login(){
+  await ensureUsername();
   const r = await apiCall(envelope("login_user", {
     facebook:0, fullScreen:1, hint:2, music:1, rated:0,
     savetime:1423527580051, sound:1,
@@ -351,7 +353,28 @@ async function resolveUsername(){
   });
   const pd = prof.ProfileData || {};
   cfg.username = pd.username || "";
+  if(cfg.username) cfg.usernameCode = cfg.inviteCode;
   return pd;
+}
+
+let usernameResolving = null;
+/* 用户名唯一来源：邀请码。带来源标记，邀请码变了自动重查；并发调用共享同一请求 */
+async function ensureUsername(){
+  if(!cfg.inviteCode) throw new Error("请先填写邀请码");
+  if(cfg.username && cfg.usernameCode === cfg.inviteCode) return cfg.username;
+  if(usernameResolving) return usernameResolving;
+  usernameResolving = (async()=>{
+    const pd = await resolveUsername();
+    if(!cfg.username) throw new Error("邀请码未解析到用户名");
+    cfg.usernameCode = cfg.inviteCode;
+    saveJSON(CFG_KEY, cfg);
+    return cfg.username;
+  })();
+  try{
+    return await usernameResolving;
+  } finally {
+    usernameResolving = null;
+  }
 }
 
 async function fetchProfile(){
@@ -378,7 +401,9 @@ async function refreshIdentity(){
     const pd=await fetchProfile(); if(!pd) return;
     profileLastCollect=typeof pd.LastCollectTime==="number"?pd.LastCollectTime:null;
     profileName=pd.Name||""; profileLevel=pd.Level??null;
-    if(!cfg.username && pd.username) cfg.username=pd.username;
+    if(pd.username && (!cfg.username || cfg.usernameCode!==cfg.inviteCode)){
+      cfg.username=pd.username; cfg.usernameCode=cfg.inviteCode; saveJSON(CFG_KEY,cfg);
+    }
     if(profileLastCollect) profileNextReady=profileLastCollect+cfg.waitMinutes*60*1000;
     render();
   }catch(e){ log("资料查询失败: "+e.message,"warn"); }
@@ -452,9 +477,6 @@ async function collectOnce(source="auto"){
 
   setStatus("collecting");
   try{
-    if(!cfg.username && cfg.inviteCode){
-      try{ const pd=await resolveUsername(); cfg.username=pd.username||""; saveJSON(CFG_KEY,cfg); }catch(e){}
-    }
     if(!token) await login();
 
     if(cfg.dryRun){
@@ -515,7 +537,7 @@ function tick(){
 
 function start(){
   if(status==="running") return;
-  if(!cfg.username && !cfg.inviteCode){ log("请先在配置页填写邀请码或用户名", "warn"); return; }
+  if(!cfg.inviteCode){ log("请先在配置页填写邀请码", "warn"); return; }
   setStatus("running");
   nextRunAt = null; // 启动先跑一轮
   if(timer) clearInterval(timer);
@@ -540,7 +562,6 @@ function setStatus(s){
 function readForm(){
   return {
     inviteCode:document.getElementById("inviteCode").value.trim(),
-    username:document.getElementById("username").value.trim(),
     password:document.getElementById("password").value,
     waitMinutes:Number(document.getElementById("waitMinutes").value)||60,
     jitterMinutes:Number(document.getElementById("jitterMinutes").value)||0,
@@ -550,7 +571,6 @@ function readForm(){
 }
 function fillForm(){
   document.getElementById("inviteCode").value=cfg.inviteCode||"";
-  document.getElementById("username").value=cfg.username||"";
   document.getElementById("password").value=cfg.password||"";
   document.getElementById("waitMinutes").value=cfg.waitMinutes;
   document.getElementById("jitterMinutes").value=cfg.jitterMinutes;
@@ -563,10 +583,14 @@ async function saveConfig(){
   f.waitMinutes=Math.max(60, Number(f.waitMinutes)||60);
   f.jitterMinutes=Math.min(3, Math.max(0, Number(f.jitterMinutes)||0));
   f.maxPerDay=Math.max(1, Number(f.maxPerDay)||23);
+  const prevCode=cfg.inviteCode;
   Object.assign(cfg,f);
-  if(!cfg.username && cfg.inviteCode){
-    try{ const pd=await resolveUsername(); cfg.username=pd.username||""; document.getElementById("username").value=cfg.username; log("已按邀请码反查用户名"); }
-    catch(e){ log("反查用户名失败: "+e.message,"warn"); }
+  if(cfg.inviteCode!==prevCode){ cfg.username=""; cfg.usernameCode=""; }
+  if(cfg.inviteCode){
+    try{ await ensureUsername(); log("已按邀请码自动获取用户名"); }
+    catch(e){ log("自动获取用户名失败: "+e.message,"warn"); }
+  }else{
+    cfg.username=""; cfg.usernameCode="";
   }
   saveJSON(CFG_KEY,cfg);
   // 按新等待分钟数刷新预计可收时间；调度进行中则用新参数实时重排下一轮
@@ -592,7 +616,7 @@ function render(){
   document.getElementById("nextRun").textContent = fmtTime(nextRunAt || profileNextReady);
   document.getElementById("nextRunNote").textContent = nextRunAt ? "含随机抖动" : "预计就绪（未计抖动）";
   document.getElementById("accountName").textContent = profileName || cfg.inviteCode || "未配置";
-  document.getElementById("accountUser").textContent = cfg.username || "—";
+  document.getElementById("accountUser").textContent = cfg.username || "按邀请码自动获取";
 
   // 身份/就绪信息条
   const offSec=(clockOffset/1000).toFixed(1);
