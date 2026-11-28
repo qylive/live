@@ -62,6 +62,9 @@
   .identity-info b{color:var(--text);font-weight:600}
   .identity-info .item{display:inline-flex;gap:6px;align-items:baseline}
   .key-form{display:grid;grid-template-columns:1.3fr 1fr auto;gap:12px;align-items:end}
+  .key-opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}
+  .key-opt input{width:auto;accent-color:var(--accent)}
+  .key-opts{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:10px}
   .key-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
   .key-stats>div{background:#f7faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
   .key-stats .k{color:var(--muted);font-size:12px}
@@ -142,6 +145,10 @@
       <label class="field"><span>钥匙类型</span><select id="keyType"></select></label>
       <label class="field"><span>开启数量（把）</span><input id="keyAmount" type="number" min="1" step="1" value="200"></label>
       <button id="btnOpenKeys" class="primary">开始开启</button>
+    </div>
+    <div class="key-opts">
+      <label class="key-opt"><input id="stopOnNew" type="checkbox"><span>抽到新卡立即停止（剩余批次不再开启、不消耗钥匙）</span></label>
+      <label class="key-opt"><input id="stopOnMythic" type="checkbox"><span>抽到神话部队立即停止</span></label>
     </div>
     <div class="hint" id="keyHint"></div>
     <div class="hint" id="keyProgress" style="margin-top:4px"></div>
@@ -767,12 +774,19 @@ async function openKeys(){
   if(total>MAX_TOTAL){ total=MAX_TOTAL; input.value=total; log(`单次最多开启 ${MAX_TOTAL} 把，已自动调整`, "warn"); }
 
   const batches = Math.ceil(total/spec.max);
+  const stopOnNew = document.getElementById("stopOnNew").checked;
+  const stopOnMythic = document.getElementById("stopOnMythic").checked;
+  const stopParts = [];
+  if(stopOnNew) stopParts.push("抽到新卡");
+  if(stopOnMythic) stopParts.push("抽到神话部队");
   const costLine = spec.id===5
     ? `预计消耗公会印记 ${fmtInt(total*spec.sealsPerKey)} 枚（${spec.sealsPerKey} 枚/把）`
     : `将消耗 ${fmtInt(total)} 把${spec.name}`;
   const okToOpen = await showDialog({
     title:"确认开启",
-    message:`开启 ${fmtInt(total)} 把「${spec.name}」\n分 ${batches} 批提交（单批上限 ${spec.max}）\n${costLine}。\n\n开启会真实消耗游戏内资源，不可撤销。`,
+    message:`开启 ${fmtInt(total)} 把「${spec.name}」\n分 ${batches} 批提交（单批上限 ${spec.max}）\n${costLine}。` +
+      (stopParts.length ? `\n${stopParts.join("或")}会立即停止，剩余批次不再消耗。` : ``) +
+      `\n\n开启会真实消耗游戏内资源，不可撤销。`,
     okText:"确认开启", cancelText:"取消", showCancel:true
   });
   if(!okToOpen) return;
@@ -809,11 +823,16 @@ async function openKeys(){
       return;
     }
 
+    await ensureTroopNames(); // 神话判定依赖名称字典里的 rarityId
+    if(stopOnMythic && (!troopNames || !Object.keys(troopNames).length)){
+      log("部队名称字典加载失败，神话判定可能不生效，请刷新页面重试", "warn");
+    }
+
     const agg = {gem:0, glory:0, gold:0, soul:0, rune:0, ingot:0, troop:0};
     const newMap = {};
     const allTroops = {};
     const rows = [];
-    let done = 0, opened = 0, keysUsed = 0, sealsUsed = 0, aborted = "";
+    let done = 0, opened = 0, keysUsed = 0, sealsUsed = 0, aborted = "", stoppedEarly = false;
 
     for(let b=1;b<=batches;b++){
       const amount = Math.min(spec.max, total-done);
@@ -839,17 +858,30 @@ async function openKeys(){
         if(before) calibrateKeyIndex(spec.id, before, after, spent);
       }
 
-      log(`开钥匙｜第 ${b}/${batches} 批 ${amount} 把｜宝石 +${pr.sums.gem} 荣耀 +${pr.sums.glory} 金币 +${pr.sums.gold}${pr.news.length?` 新卡 ${pr.news.length}`:""}`);
+      const mythicThis = pr.troops.filter(t=>{ const m=troopMeta(t.id); return m && m.rarityId===6; }).length;
+      log(`开钥匙｜第 ${b}/${batches} 批 ${amount} 把｜宝石 +${pr.sums.gem} 荣耀 +${pr.sums.glory} 金币 +${pr.sums.gold}${pr.news.length?` 新卡 ${pr.news.length}`:""}${mythicThis?` 神话 ${mythicThis}`:""}`);
+
+      const hitNew = stopOnNew && pr.news.length > 0;
+      const hitMythic = stopOnMythic && mythicThis > 0;
+      const hitParts = [];
+      if(hitNew) hitParts.push("新卡");
+      if(hitMythic) hitParts.push("神话部队");
 
       if(spent < expected){
-        aborted = `资源不足，服务器实际只开启了 ${openedThis} 把，已提前结束`;
+        aborted = `资源不足，服务器实际只开启了 ${openedThis} 把，已提前结束` +
+          (hitParts.length ? `；本批同时抽到${hitParts.join("与")}` : "");
+        log(aborted, "warn");
+        break;
+      }
+      if((hitNew || hitMythic) && b < batches){
+        stoppedEarly = true;
+        aborted = `第 ${b} 批抽到${hitParts.join("与")}，已按设置停止；剩余 ${batches-b} 批未开启，不消耗钥匙`;
         log(aborted, "warn");
         break;
       }
       if(b<batches) await new Promise(r=>setTimeout(r, 400));
     }
 
-    await ensureTroopNames();
     const mythicTroops = Object.entries(allTroops)
       .map(([id,n])=> ({id:Number(id), n, meta:troopMeta(id)}))
       .filter(x=> x.meta && x.meta.rarityId===6)
@@ -861,10 +893,11 @@ async function openKeys(){
       batches:rows, sums:agg,
       newTroops:Object.entries(newMap).map(([id,n])=>({id:Number(id), n})),
       mythicTroops,
+      stopOnNew, stopOnMythic, stoppedEarly,
       keysUsed, sealsUsed, aborted
     };
     saveJSON(KEYRUN_KEY, keyRun);
-    log(`开钥匙完成｜共 ${opened} 把｜宝石 +${agg.gem} 荣耀 +${agg.glory} 金币 +${agg.gold}｜新卡 ${keyRun.newTroops.length} 张`);
+    log(`开钥匙${stoppedEarly?"提前结束":"完成"}｜共 ${opened} 把｜宝石 +${agg.gem} 荣耀 +${agg.glory} 金币 +${agg.gold}｜新卡 ${keyRun.newTroops.length} 张`);
   }catch(e){
     log("开钥匙异常: "+e.message, "error");
   }finally{
