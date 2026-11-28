@@ -345,8 +345,10 @@ async function resolveUsername(){
     functionName:"download_user_names", SearchText:cfg.inviteCode, StartAt:0, Limit:500
   });
   const list = u.Usernames || [];
-  const item = list.find(x=>x.Name===cfg.inviteCode) || list[0];
-  if(!item) throw new Error("邀请码未查到账号");
+  const want = String(cfg.inviteCode || "").trim().toLowerCase();
+  // 只认邀请码完全匹配（忽略大小写）；仅当结果唯一时才接受，避免误取别人的账号
+  const item = list.find(x=>String(x.Name||"").toLowerCase()===want) || (list.length===1?list[0]:null);
+  if(!item) throw new Error("邀请码未查到唯一账号");
   const prof = await apiCall({
     clientVersion:cfg.clientVersion, platform:cfg.platform,
     functionName:"get_hero_profile", Id:item.Id
@@ -380,7 +382,8 @@ async function ensureUsername(){
 async function fetchProfile(){
   const u = await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"download_user_names",SearchText:cfg.inviteCode,StartAt:0,Limit:500});
   const list=u.Usernames||[];
-  const item=list.find(x=>x.Name===cfg.inviteCode)||list[0]; if(!item) return null;
+  const want=String(cfg.inviteCode||"").trim().toLowerCase();
+  const item=list.find(x=>String(x.Name||"").toLowerCase()===want)||(list.length===1?list[0]:null); if(!item) return null;
   const prof=await apiCall({clientVersion:cfg.clientVersion,platform:cfg.platform,functionName:"get_hero_profile",Id:item.Id});
   const pd=prof.ProfileData||{};
   if(typeof pd.ServerTime==="number") clockOffset = Date.now()-pd.ServerTime;
