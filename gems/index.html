@@ -219,6 +219,8 @@ let keyBalance = loadJSON(KEYBAL_KEY, null);
 let keyRun = loadJSON(KEYRUN_KEY, null);
 let keyBusy = false;
 let lastUser = null;
+let troopNames = null;        // troop id -> 名称（来自 Taran 数据镜像）
+let troopNamesLoading = null;
 
 /* ===================== 工具 ===================== */
 function loadJSON(key, fallback){
@@ -599,6 +601,22 @@ function absorbBalance(hero){
   }
 }
 
+/* 卡牌 id → 名称：数据来自 Taran 数据镜像（Garyatrics 托管的 Troops_Chinese.json） */
+async function ensureTroopNames(){
+  if(troopNames) return troopNames;
+  if(troopNamesLoading) return troopNamesLoading;
+  troopNamesLoading = fetch("./troop_names.json", {cache:"no-cache"})
+    .then(r=> r.ok ? r.json() : {})
+    .then(m=>{ troopNames = m && typeof m==="object" ? m : {}; return troopNames; })
+    .catch(()=>{ troopNames = {}; return troopNames; });
+  return troopNamesLoading;
+}
+
+function troopLabel(id){
+  const name = troopNames && troopNames[String(id)];
+  return name ? `${esc(name)} · #${id}` : `#${id}`;
+}
+
 /* 用每批前后的 KeyTypes 差值反推该类型在数组中的下标（仅普通钥匙） */
 function calibrateKeyIndex(specId, before, after, spent){
   if(specId===5 || !Array.isArray(before) || !Array.isArray(after) || !(spent>0)) return;
@@ -708,6 +726,7 @@ async function openKeys(){
       if(b<batches) await new Promise(r=>setTimeout(r, 400));
     }
 
+    await ensureTroopNames();
     keyRun = {
       ts:nowMs(), date:localDate(nowMs()),
       typeId:spec.id, typeName:spec.name,
@@ -764,7 +783,7 @@ function renderKeyPanel(){
 
   const list = keyRun.newTroops || [];
   news.innerHTML = list.length
-    ? `<div class="hint" style="margin-top:10px">新获得卡牌（Type=troop 且 New=true）</div><div class="chips">${list.map(n=>`<span class="chip">部队 #${n.id} ×${n.n}</span>`).join("")}</div>`
+    ? `<div class="hint" style="margin-top:10px">新获得卡牌（Type=troop 且 New=true）</div><div class="chips">${list.map(n=>`<span class="chip">部队 ${troopLabel(n.id)} ×${n.n}</span>`).join("")}</div>`
     : `<div class="hint" style="margin-top:10px">本次未获得新卡牌</div>`;
 }
 
@@ -799,6 +818,7 @@ document.getElementById("btnProbe").onclick=async()=>{
     catch(e){ log("刷新库存失败: "+e.message, "error"); }
   };
   renderKeyPanel();
+  ensureTroopNames().then(()=>{ if(keyRun) renderKeyPanel(); }).catch(()=>{});
 })();
 
 fillForm();
