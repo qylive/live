@@ -68,6 +68,7 @@
   .key-stats .v{font-size:16px;font-weight:600;margin-top:4px}
   .chips{margin-top:6px}
   .chip{display:inline-block;padding:4px 10px;border-radius:8px;background:#e6f4ec;color:var(--accent-d);font-size:12px;margin:4px 6px 0 0}
+  .chip.mythic{background:#f3e8ff;color:#7a3fa8}
   @media (max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.key-form{grid-template-columns:1fr}.key-stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -612,9 +613,15 @@ async function ensureTroopNames(){
   return troopNamesLoading;
 }
 
+function troopMeta(id){
+  const v = troopNames && troopNames[String(id)];
+  if(!v) return null;
+  return Array.isArray(v) ? {name:v[0], rarityId:v[1]} : {name:v, rarityId:null};
+}
+
 function troopLabel(id){
-  const name = troopNames && troopNames[String(id)];
-  return name ? `${esc(name)} · #${id}` : `#${id}`;
+  const m = troopMeta(id);
+  return m ? `${esc(m.name)} · #${id}` : `#${id}`;
 }
 
 /* 用每批前后的 KeyTypes 差值反推该类型在数组中的下标（仅普通钥匙） */
@@ -641,12 +648,17 @@ function parseKeyBatch(res){
   const arr = res.SimpleRewardArray || [];
   const sums = {gem:0, glory:0, gold:0, soul:0, rune:0, ingot:0, troop:0};
   const news = [];
+  const troops = [];
   for(const e of arr){
     if(Object.prototype.hasOwnProperty.call(sums, e.Type)) sums[e.Type] += (typeof e.Amount==="number"?e.Amount:0);
-    if(e.Type==="troop" && e.New===true) news.push({id:e.Data, n:(typeof e.Amount==="number"?e.Amount:1)});
+    if(e.Type==="troop"){
+      const n = (typeof e.Amount==="number"?e.Amount:1);
+      troops.push({id:e.Data, n});
+      if(e.New===true) news.push({id:e.Data, n});
+    }
   }
   const ev = res.EventData || {};
-  return {sums, news, keysSpent:num(ev,"KeysSpent"), sealsSpent:num(ev,"SealsSpent"), hero:res.NewHeroData||{}};
+  return {sums, news, troops, keysSpent:num(ev,"KeysSpent"), sealsSpent:num(ev,"SealsSpent"), hero:res.NewHeroData||{}};
 }
 
 async function openKeys(){
@@ -690,6 +702,7 @@ async function openKeys(){
 
     const agg = {gem:0, glory:0, gold:0, soul:0, rune:0, ingot:0, troop:0};
     const newMap = {};
+    const allTroops = {};
     const rows = [];
     let done = 0, opened = 0, keysUsed = 0, sealsUsed = 0, aborted = "";
 
@@ -702,6 +715,7 @@ async function openKeys(){
       const pr = parseKeyBatch(res);
       for(const k in agg) agg[k] += pr.sums[k];
       pr.news.forEach(n=>{ newMap[n.id] = (newMap[n.id]||0) + n.n; });
+      pr.troops.forEach(t=>{ allTroops[t.id] = (allTroops[t.id]||0) + t.n; });
 
       const spent = spec.id===5 ? pr.sealsSpent : pr.keysSpent;
       const expected = spec.id===5 ? amount*spec.sealsPerKey : amount;
@@ -727,12 +741,17 @@ async function openKeys(){
     }
 
     await ensureTroopNames();
+    const mythicTroops = Object.entries(allTroops)
+      .map(([id,n])=> ({id:Number(id), n, meta:troopMeta(id)}))
+      .filter(x=> x.meta && x.meta.rarityId===6)
+      .map(x=> ({id:x.id, n:x.n, name:x.meta.name}));
     keyRun = {
       ts:nowMs(), date:localDate(nowMs()),
       typeId:spec.id, typeName:spec.name,
       requested:total, opened,
       batches:rows, sums:agg,
       newTroops:Object.entries(newMap).map(([id,n])=>({id:Number(id), n})),
+      mythicTroops,
       keysUsed, sealsUsed, aborted
     };
     saveJSON(KEYRUN_KEY, keyRun);
@@ -782,9 +801,23 @@ function renderKeyPanel(){
   }).join("") || `<tr><td colspan="6" class="empty">暂无批次记录</td></tr>`;
 
   const list = keyRun.newTroops || [];
-  news.innerHTML = list.length
-    ? `<div class="hint" style="margin-top:10px">新获得卡牌（Type=troop 且 New=true）</div><div class="chips">${list.map(n=>`<span class="chip">部队 ${troopLabel(n.id)} ×${n.n}</span>`).join("")}</div>`
-    : `<div class="hint" style="margin-top:10px">本次未获得新卡牌</div>`;
+  let newsHtml = `<div class="hint" style="margin-top:10px">新获得卡牌（Type=troop 且 New=true）</div>`;
+  newsHtml += list.length
+    ? `<div class="chips">${list.map(n=>{
+        const m = troopMeta(n.id);
+        const cls = m && m.rarityId===6 ? "chip mythic" : "chip";
+        return `<span class="${cls}">部队 ${troopLabel(n.id)} ×${n.n}</span>`;
+      }).join("")}</div>`
+    : `<div class="hint">本次未获得新卡牌</div>`;
+
+  if(Array.isArray(keyRun.mythicTroops)){
+    const myth = keyRun.mythicTroops;
+    newsHtml += `<div class="hint" style="margin-top:10px">神话部队（稀有度=神话）</div>`;
+    newsHtml += myth.length
+      ? `<div class="chips">${myth.map(n=>`<span class="chip mythic">${esc(n.name)} · #${n.id} ×${n.n}</span>`).join("")}</div>`
+      : `<div class="hint">本次未抽出神话部队</div>`;
+  }
+  news.innerHTML = newsHtml;
 }
 
 /* ===================== 事件绑定 ===================== */
