@@ -61,7 +61,14 @@
   .identity-info{display:flex;flex-wrap:wrap;gap:8px 18px;margin:-6px 2px 16px;font-size:12px;color:var(--muted)}
   .identity-info b{color:var(--text);font-weight:600}
   .identity-info .item{display:inline-flex;gap:6px;align-items:baseline}
-  @media (max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+  .key-form{display:grid;grid-template-columns:1.3fr 1fr auto;gap:12px;align-items:end}
+  .key-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+  .key-stats>div{background:#f7faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .key-stats .k{color:var(--muted);font-size:12px}
+  .key-stats .v{font-size:16px;font-weight:600;margin-top:4px}
+  .chips{margin-top:6px}
+  .chip{display:inline-block;padding:4px 10px;border-radius:8px;background:#e6f4ec;color:var(--accent-d);font-size:12px;margin:4px 6px 0 0}
+  @media (max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.key-form{grid-template-columns:1fr}.key-stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -108,6 +115,31 @@
       <button id="btnSave" class="primary">保存配置</button>
     </div>
     <div class="hint">配置与收菜记录保存在本机浏览器 localStorage，不会上传到任何第三方；换浏览器或清理缓存后需重新填写。</div>
+  </section>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin-bottom:0">钥匙宝箱（批量开启）</h2>
+      <div class="row" style="gap:8px">
+        <span class="tag" id="keyStock">库存：—</span>
+        <button id="btnRefreshKeys" class="ghost" style="padding:5px 10px;font-size:12px">刷新库存</button>
+      </div>
+    </div>
+    <div class="key-form">
+      <label class="field"><span>钥匙类型</span><select id="keyType"></select></label>
+      <label class="field"><span>开启数量（把）</span><input id="keyAmount" type="number" min="1" step="1" value="200"></label>
+      <button id="btnOpenKeys" class="primary">开始开启</button>
+    </div>
+    <div class="hint" id="keyHint"></div>
+    <div class="hint" id="keyProgress" style="margin-top:4px"></div>
+    <div id="keySummary"></div>
+    <div class="table-scroll" style="max-height:260px;margin-top:12px">
+      <table>
+        <thead><tr><th>批次</th><th>数量</th><th>宝石</th><th>荣耀</th><th>金币</th><th>新卡</th></tr></thead>
+        <tbody id="keyBatchBody"></tbody>
+      </table>
+    </div>
+    <div id="keyNewCards"></div>
   </section>
 
   <section class="panel">
@@ -166,6 +198,28 @@ let profileNextReady = null;   // LastCollectTime + 等待分钟
 let profileName = "";
 let profileLevel = null;
 
+/* ===================== 钥匙宝箱状态 ===================== */
+const KEYRUN_KEY = "gow_key_lastrun";
+const KEYBAL_KEY = "gow_key_balance";
+const KEYIDX_KEY = "gow_key_idxmap";
+/* Type 取值：0 黄金 / 1 荣耀 / 2 钻石 / 3 活动 / 4 VIP / 5 公会印记 / 6 闪耀。
+   普通钥匙单批上限 200，公会印记单批 50；公会印记按 20 枚印记/把消耗。 */
+const KEY_SPECS = [
+  {id:0, name:"黄金钥匙", max:200},
+  {id:1, name:"荣耀钥匙", max:200},
+  {id:2, name:"钻石钥匙", max:200},
+  {id:3, name:"活动钥匙", max:200},
+  {id:4, name:"VIP 钥匙", max:200},
+  {id:5, name:"公会印记钥匙", max:50, sealsPerKey:20},
+  {id:6, name:"闪耀钥匙", max:200}
+];
+const KEY_IDX_SEED = {0:0, 1:1, 2:2};  // 已在抓包中实测：KeyTypes[0/1/2] 分别对应黄金/荣耀/钻石
+let keyIdxMap = loadJSON(KEYIDX_KEY, KEY_IDX_SEED);
+let keyBalance = loadJSON(KEYBAL_KEY, null);
+let keyRun = loadJSON(KEYRUN_KEY, null);
+let keyBusy = false;
+let lastUser = null;
+
 /* ===================== 工具 ===================== */
 function loadJSON(key, fallback){
   try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : JSON.parse(JSON.stringify(fallback)); }
@@ -221,6 +275,7 @@ async function login(){
   }));
   token = r.ServerToken;
   if(!token) throw new Error("登录未下发 ServerToken");
+  lastUser = r.pUser || null;
   log("登录成功，会话令牌已刷新");
   return r;
 }
@@ -518,6 +573,201 @@ function render(){
   document.getElementById("totalsAll").innerHTML = totalsHtml(ledger, "历史总计");
 }
 
+/* ===================== 钥匙宝箱：开启与汇总 ===================== */
+function fmtInt(v){ return (typeof v==="number" && isFinite(v)) ? v.toLocaleString("zh-CN") : "—"; }
+
+function keySpec(){
+  const v = Number(document.getElementById("keyType").value);
+  return KEY_SPECS.find(k=>k.id===v) || KEY_SPECS[0];
+}
+
+function stockText(spec){
+  if(!keyBalance) return "库存：—（开启时自动读取）";
+  if(spec.id===5){
+    return (typeof keyBalance.Seals==="number") ? `库存：${fmtInt(keyBalance.Seals)} 枚印记（20 枚/把）` : "库存：—";
+  }
+  const idx = keyIdxMap[spec.id];
+  if(idx==null || !Array.isArray(keyBalance.KeyTypes) || typeof keyBalance.KeyTypes[idx]!=="number") return "库存：—（首次开启后校准）";
+  return `库存：${fmtInt(keyBalance.KeyTypes[idx])} 把`;
+}
+
+function absorbBalance(hero){
+  if(!hero) return;
+  if(Array.isArray(hero.KeyTypes)){
+    keyBalance = {KeyTypes:hero.KeyTypes.slice(), Seals:hero.Seals, Gems:hero.Gems, Gold:hero.Gold, Glory:hero.Glory};
+    saveJSON(KEYBAL_KEY, keyBalance);
+  }
+}
+
+/* 用每批前后的 KeyTypes 差值反推该类型在数组中的下标（仅普通钥匙） */
+function calibrateKeyIndex(specId, before, after, spent){
+  if(specId===5 || !Array.isArray(before) || !Array.isArray(after) || !(spent>0)) return;
+  const mapped = keyIdxMap[specId];
+  if(mapped!=null && before[mapped]-after[mapped]===spent) return;
+  for(let i=0;i<Math.min(before.length, after.length);i++){
+    if(before[i]-after[i]===spent){ keyIdxMap[specId]=i; saveJSON(KEYIDX_KEY, keyIdxMap); return; }
+  }
+}
+
+async function callOpenKey(typeId, amount){
+  const extra = {Type:typeId, Amount:amount, FactionId:-1, TutorialId:0, SpendCurrency:(typeId===5), EpicBurningTroops:null};
+  try{ return await apiCall(envelope("open_key", extra)); }
+  catch(e){
+    log("开钥匙调用失败，重新登录后重试: "+e.message, "warn");
+    token = null; await login();
+    return await apiCall(envelope("open_key", extra));
+  }
+}
+
+function parseKeyBatch(res){
+  const arr = res.SimpleRewardArray || [];
+  const sums = {gem:0, glory:0, gold:0, soul:0, rune:0, ingot:0, troop:0};
+  const news = [];
+  for(const e of arr){
+    if(Object.prototype.hasOwnProperty.call(sums, e.Type)) sums[e.Type] += (typeof e.Amount==="number"?e.Amount:0);
+    if(e.Type==="troop" && e.New===true) news.push({id:e.Data, n:(typeof e.Amount==="number"?e.Amount:1)});
+  }
+  const ev = res.EventData || {};
+  return {sums, news, keysSpent:num(ev,"KeysSpent"), sealsSpent:num(ev,"SealsSpent"), hero:res.NewHeroData||{}};
+}
+
+async function openKeys(){
+  if(keyBusy) return;
+  const spec = keySpec();
+  const input = document.getElementById("keyAmount");
+  let total = Math.floor(Number(input.value));
+  if(!(total>0)){ log("请输入大于 0 的开启数量", "warn"); return; }
+  const MAX_TOTAL = 10000;
+  if(total>MAX_TOTAL){ total=MAX_TOTAL; input.value=total; log(`单次最多开启 ${MAX_TOTAL} 把，已自动调整`, "warn"); }
+
+  const batches = Math.ceil(total/spec.max);
+  const costLine = spec.id===5
+    ? `预计消耗公会印记 ${fmtInt(total*spec.sealsPerKey)} 枚（${spec.sealsPerKey} 枚/把）`
+    : `将消耗 ${fmtInt(total)} 把${spec.name}`;
+  if(!confirm(`确认开启 ${fmtInt(total)} 把「${spec.name}」？\n分 ${batches} 批提交（单批上限 ${spec.max}）。\n${costLine}。\n\n开启会真实消耗游戏内资源，不可撤销。`)) return;
+
+  keyBusy = true;
+  const btn = document.getElementById("btnOpenKeys");
+  btn.disabled = true; btn.textContent = "开启中…";
+  document.getElementById("keyProgress").textContent = "";
+  try{
+    if(!token) await login();
+    else { try{ await login(); }catch(e){ log("刷新令牌失败，沿用现有令牌: "+e.message, "warn"); } }
+    absorbBalance(lastUser);
+
+    // 库存预校验，避免打空批次
+    if(spec.id===5 && keyBalance && typeof keyBalance.Seals==="number" && keyBalance.Seals < total*spec.sealsPerKey){
+      const need = total*spec.sealsPerKey;
+      log(`公会印记不足：需要 ${need} 枚，当前 ${keyBalance.Seals} 枚`, "error");
+      alert(`公会印记不足：需要 ${need} 枚，当前只有 ${keyBalance.Seals} 枚。`);
+      return;
+    }
+    const idx = keyIdxMap[spec.id];
+    if(spec.id!==5 && keyBalance && idx!=null && Array.isArray(keyBalance.KeyTypes) && typeof keyBalance.KeyTypes[idx]==="number" && keyBalance.KeyTypes[idx] < total){
+      const have = keyBalance.KeyTypes[idx];
+      log(`${spec.name}不足：需要 ${total} 把，当前 ${have} 把`, "error");
+      alert(`${spec.name}不足：需要 ${total} 把，当前只有 ${have} 把。`);
+      return;
+    }
+
+    const agg = {gem:0, glory:0, gold:0, soul:0, rune:0, ingot:0, troop:0};
+    const newMap = {};
+    const rows = [];
+    let done = 0, opened = 0, keysUsed = 0, sealsUsed = 0, aborted = "";
+
+    for(let b=1;b<=batches;b++){
+      const amount = Math.min(spec.max, total-done);
+      document.getElementById("keyProgress").textContent = `正在开启第 ${b}/${batches} 批（${amount} 把）…`;
+      const before = keyBalance && Array.isArray(keyBalance.KeyTypes) ? keyBalance.KeyTypes.slice() : null;
+
+      const res = await callOpenKey(spec.id, amount);
+      const pr = parseKeyBatch(res);
+      for(const k in agg) agg[k] += pr.sums[k];
+      pr.news.forEach(n=>{ newMap[n.id] = (newMap[n.id]||0) + n.n; });
+
+      const spent = spec.id===5 ? pr.sealsSpent : pr.keysSpent;
+      const expected = spec.id===5 ? amount*spec.sealsPerKey : amount;
+      const openedThis = spec.id===5 ? Math.round(pr.sealsSpent/spec.sealsPerKey) : pr.keysSpent;
+      keysUsed += pr.keysSpent; sealsUsed += pr.sealsSpent;
+      done += amount; opened += openedThis;
+      rows.push({b, amount, opened:openedThis, sums:pr.sums, newCount:pr.news.length});
+
+      if(Array.isArray(pr.hero.KeyTypes)){
+        const after = pr.hero.KeyTypes.slice();
+        absorbBalance(pr.hero);
+        if(before) calibrateKeyIndex(spec.id, before, after, spent);
+      }
+
+      log(`开钥匙｜第 ${b}/${batches} 批 ${amount} 把｜宝石 +${pr.sums.gem} 荣耀 +${pr.sums.glory} 金币 +${pr.sums.gold}${pr.news.length?` 新卡 ${pr.news.length}`:""}`);
+
+      if(spent < expected){
+        aborted = `资源不足，服务器实际只开启了 ${openedThis} 把，已提前结束`;
+        log(aborted, "warn");
+        break;
+      }
+      if(b<batches) await new Promise(r=>setTimeout(r, 400));
+    }
+
+    keyRun = {
+      ts:nowMs(), date:localDate(nowMs()),
+      typeId:spec.id, typeName:spec.name,
+      requested:total, opened,
+      batches:rows, sums:agg,
+      newTroops:Object.entries(newMap).map(([id,n])=>({id:Number(id), n})),
+      keysUsed, sealsUsed, aborted
+    };
+    saveJSON(KEYRUN_KEY, keyRun);
+    log(`开钥匙完成｜共 ${opened} 把｜宝石 +${agg.gem} 荣耀 +${agg.glory} 金币 +${agg.gold}｜新卡 ${keyRun.newTroops.length} 张`);
+  }catch(e){
+    log("开钥匙异常: "+e.message, "error");
+  }finally{
+    keyBusy = false;
+    btn.disabled = false; btn.textContent = "开始开启";
+    document.getElementById("keyProgress").textContent = "";
+    renderKeyPanel();
+  }
+}
+
+function renderKeyPanel(){
+  const spec = keySpec();
+  document.getElementById("keyStock").textContent = stockText(spec);
+  document.getElementById("keyHint").textContent = spec.id===5
+    ? "公会印记钥匙按 20 枚印记/把消耗，单批上限 50；超出自动分批。开启会真实消耗印记，不可撤销。"
+    : `${spec.name}单批上限 ${spec.max} 把，超出自动分批；开启会真实消耗钥匙，不可撤销。`;
+
+  const sum = document.getElementById("keySummary");
+  const body = document.getElementById("keyBatchBody");
+  const news = document.getElementById("keyNewCards");
+
+  if(!keyRun){
+    sum.innerHTML = `<div class="empty">尚未开启。选择类型和数量后点击“开始开启”。</div>`;
+    body.innerHTML = `<tr><td colspan="6" class="empty">暂无批次记录</td></tr>`;
+    news.innerHTML = "";
+    return;
+  }
+
+  const s = keyRun.sums || {};
+  sum.innerHTML = `
+    <div class="key-stats">
+      <div><div class="k">已开启</div><div class="v">${fmtInt(keyRun.opened)} 把</div></div>
+      <div><div class="k">宝石</div><div class="v">+${fmtInt(s.gem||0)}</div></div>
+      <div><div class="k">荣耀</div><div class="v">+${fmtInt(s.glory||0)}</div></div>
+      <div><div class="k">金币</div><div class="v">+${fmtInt(s.gold||0)}</div></div>
+      <div><div class="k">新卡</div><div class="v">${(keyRun.newTroops||[]).length} 张</div></div>
+    </div>
+    <div class="hint">${esc(keyRun.typeName)}｜${fmtTime(keyRun.ts)}｜其他：灵魂 +${fmtInt(s.soul||0)} · 符文 ${fmtInt(s.rune||0)} · 铸锭 ${fmtInt(s.ingot||0)} · 部队 ${fmtInt(s.troop||0)}${keyRun.aborted?`｜${esc(keyRun.aborted)}`:""}</div>`;
+
+  body.innerHTML = (keyRun.batches||[]).map(r=>{
+    const rs = r.sums || {};
+    return `<tr><td>第 ${r.b} 批</td><td>${r.amount}</td><td>${rs.gem||0}</td><td>${rs.glory||0}</td><td>${rs.gold||0}</td><td>${r.newCount||0}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="empty">暂无批次记录</td></tr>`;
+
+  const list = keyRun.newTroops || [];
+  news.innerHTML = list.length
+    ? `<div class="hint" style="margin-top:10px">新获得卡牌（Type=troop 且 New=true）</div><div class="chips">${list.map(n=>`<span class="chip">部队 #${n.id} ×${n.n}</span>`).join("")}</div>`
+    : `<div class="hint" style="margin-top:10px">本次未获得新卡牌</div>`;
+}
+
 /* ===================== 事件绑定 ===================== */
 document.getElementById("btnStart").onclick=start;
 document.getElementById("btnPause").onclick=pause;
@@ -536,6 +786,20 @@ document.getElementById("btnProbe").onclick=async()=>{
   }catch(e){ log("探测失败: "+e.message,"error"); }
   finally{ setStatus(timer?"running":"stopped"); render(); }
 };
+
+(function initKeyPanel(){
+  const sel = document.getElementById("keyType");
+  KEY_SPECS.forEach(k=>{ const o=document.createElement("option"); o.value=String(k.id); o.textContent=k.name; sel.appendChild(o); });
+  sel.value = "0";
+  document.getElementById("keyAmount").value = KEY_SPECS[0].max;
+  sel.onchange = ()=>{ document.getElementById("keyAmount").value = keySpec().max; renderKeyPanel(); };
+  document.getElementById("btnOpenKeys").onclick = openKeys;
+  document.getElementById("btnRefreshKeys").onclick = async()=>{
+    try{ await login(); absorbBalance(lastUser); renderKeyPanel(); log("钥匙库存已刷新"); }
+    catch(e){ log("刷新库存失败: "+e.message, "error"); }
+  };
+  renderKeyPanel();
+})();
 
 fillForm();
 render();
